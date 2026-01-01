@@ -1,0 +1,23 @@
+# Database
+database.sqlite
+database.sqlite-journal
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
+
+# Composer
+vendor/
+composer.lock
