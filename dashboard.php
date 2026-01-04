@@ -151,6 +151,7 @@ $view = $_GET['view'] ?? 'grid';
                     <?php endif; ?>
 
                     <span class="tag" style="font-size: 0.8em; color: #666; background: #eef2f7;">
+                        <i class="fas fa-folder" style="color: #f39c12; margin-right: 5px;"></i>
                         <?= htmlspecialchars($link['category_name'] ?? 'Genel') ?>
                     </span>
 
