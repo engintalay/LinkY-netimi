@@ -56,6 +56,36 @@ try {
         $pdo->exec($query);
     }
 
+    // Auto-Migration: Check for missing columns in 'users' table and add them if necessary
+    // This handles the case where the table exists (from older version) but lacks new fields.
+    $columnsToCheck = [
+        'failed_attempts' => 'INTEGER DEFAULT 0',
+        'last_failed_attempt' => 'DATETIME',
+        'locked_until' => 'DATETIME',
+        'daily_lock_count' => 'INTEGER DEFAULT 0',
+        'last_lock_date' => 'DATE',
+        'is_permanently_locked' => 'INTEGER DEFAULT 0',
+        'role' => "TEXT DEFAULT 'user'"
+    ];
+
+    $existingColumns = [];
+    $stmt = $pdo->query("PRAGMA table_info(users)");
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $existingColumns[] = $row['name'];
+    }
+
+    foreach ($columnsToCheck as $colName => $colType) {
+        if (!in_array($colName, $existingColumns)) {
+            try {
+                $pdo->exec("ALTER TABLE users ADD COLUMN $colName $colType");
+            } catch (PDOException $e) {
+                // Ignore error if column already exists (race condition or other DB issue), 
+                // but log if needed. For now, silent fail is safer than crashing.
+                // explicitly silencing to avoid fatal errors on deployment if state is weird
+            }
+        }
+    }
+
     // Create default admin user if not exists
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE username = 'admin'");
     $stmt->execute();
