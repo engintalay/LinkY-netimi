@@ -35,6 +35,7 @@ try {
             url TEXT NOT NULL,
             title TEXT,
             description TEXT,
+            image_url TEXT,
             visit_count INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(category_id) REFERENCES categories(id)
@@ -90,6 +91,18 @@ try {
                 // Ignore error if column already exists
             }
         }
+    }
+
+    // Auto-Migration for links table (image_url)
+    $stmt = $pdo->query("PRAGMA table_info(links)");
+    $linkCols = [];
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $linkCols[] = $row['name'];
+    }
+    if (!in_array('image_url', $linkCols)) {
+         try {
+            $pdo->exec("ALTER TABLE links ADD COLUMN image_url TEXT");
+        } catch (PDOException $e) {}
     }
 
     // Auto-Migration for login_logs (ensure table exists if added later to DB connection)

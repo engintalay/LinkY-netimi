@@ -122,13 +122,19 @@ $userInitial = strtoupper(substr($_SESSION['username'], 0, 1));
         <div class="link-grid">
             <?php foreach ($links as $link): ?>
                 <div class="glass-card link-item" style="padding: 20px; position: relative;">
-                    <div style="position: absolute; top: 15px; right: 15px;">
+                    <div style="position: absolute; top: 15px; right: 15px; background: white; padding: 2px 5px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
                         <a href="manage.php?action=edit_link&id=<?= $link['id'] ?>" style="color: #666;"><i
                                 class="fas fa-edit"></i></a>
                         <a href="manage.php?action=delete_link&id=<?= $link['id'] ?>"
                             onclick="return confirm('Silmek istediğine emin misin?')"
                             style="color: #ff6b6b; margin-left: 10px;"><i class="fas fa-trash"></i></a>
                     </div>
+                    
+                    <?php if(!empty($link['image_url'])): ?>
+                        <div style="height: 150px; overflow: hidden; border-radius: 10px; margin-bottom: 10px;">
+                             <img src="<?= htmlspecialchars($link['image_url']) ?>" style="width: 100%; height: 100%; object-fit: cover;">
+                        </div>
+                    <?php endif; ?>
 
                     <span class="tag" style="font-size: 0.8em; color: #666; background: #eef2f7;">
                         <?= htmlspecialchars($link['category_name'] ?? 'Genel') ?>

@@ -11,11 +11,12 @@ if (!isLoggedIn()) {
 $url = $_GET['url'] ?? '';
 
 if ($url) {
+    header('Content-Type: application/json');
     if (!filter_var($url, FILTER_VALIDATE_URL)) {
-         echo "Geçersiz URL";
+         echo json_encode(['error' => 'Geçersiz URL']);
     } else {
-        echo fetchUrlTitle($url);
+        echo json_encode(fetchUrlDetails($url));
     }
 } else {
-    echo "";
+    echo json_encode(['error' => 'No URL provided']);
 }

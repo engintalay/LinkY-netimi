@@ -64,6 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $cat_id = $_POST['category_id'] ?: null;
         $title = sanitize($_POST['title']);
         $desc = sanitize($_POST['description']);
+        $image_url = sanitize($_POST['image_url'] ?? '');
 
         // Auto fetch title if empty
         if (empty($title) && !empty($url)) {
@@ -72,11 +73,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($url) {
             if ($id) {
-                $stmt = $pdo->prepare("UPDATE links SET url=?, title=?, description=?, category_id=? WHERE id=?");
-                $stmt->execute([$url, $title, $desc, $cat_id, $id]);
+                $stmt = $pdo->prepare("UPDATE links SET url=?, title=?, description=?, image_url=?, category_id=? WHERE id=?");
+                $stmt->execute([$url, $title, $desc, $image_url, $cat_id, $id]);
             } else {
-                $stmt = $pdo->prepare("INSERT INTO links (user_id, category_id, url, title, description) VALUES (?, ?, ?, ?, ?)");
-                $stmt->execute([$_SESSION['user_id'], $cat_id, $url, $title, $desc]);
+                $stmt = $pdo->prepare("INSERT INTO links (user_id, category_id, url, title, description, image_url) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$_SESSION['user_id'], $cat_id, $url, $title, $desc, $image_url]);
             }
             header("Location: dashboard.php");
             exit;
@@ -163,8 +164,24 @@ if ($action == 'new_category')
                         <label>Başlık (Boş bırakılırsa otomatik çekilir)</label>
                         <div style="display: flex; gap: 10px;">
                             <input type="text" name="title" id="titleInput" value="<?= $editData['title'] ?? '' ?>">
-                            <button type="button" id="fetchBtn" style="padding: 10px;" title="Başlığı Çek"><i
-                                    class="fas fa-sync"></i> Çek</button>
+                            <button type="button" id="fetchBtn" style="padding: 10px;" title="Bilgileri Çek"><i
+                                    class="fas fa-magic"></i> Çek</button>
+                        </div>
+                    </div>
+
+                    <!-- Image Selection -->
+                    <input type="hidden" name="image_url" id="imageUrlInput" value="<?= $editData['image_url'] ?? '' ?>">
+                    <div class="form-group" id="imageSelectionArea" style="<?= ($editData['image_url'] ?? '') ? '' : 'display:none;' ?>">
+                        <label>Görsel Seçimi</label>
+                        <?php if($editData['image_url'] ?? ''): ?>
+                            <div style="margin-bottom:10px;">
+                                <img src="<?= $editData['image_url'] ?>" style="height: 100px; border-radius: 5px; border: 2px solid #3498db;">
+                                <p style="font-size:0.8em; color:#666;">Mevcut Görsel</p>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <div id="fetchedImagesGrid" style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px;">
+                            <!-- Images will be injected here via JS -->
                         </div>
                     </div>
 
@@ -203,6 +220,9 @@ if ($action == 'new_category')
         document.getElementById('fetchBtn').addEventListener('click', function() {
             var url = document.querySelector('input[name="url"]').value;
             var titleInput = document.getElementById('titleInput');
+            var imageUrlInput = document.getElementById('imageUrlInput');
+            var imageArea = document.getElementById('imageSelectionArea');
+            var grid = document.getElementById('fetchedImagesGrid');
             var btn = this;
 
             if (!url) {
@@ -215,12 +235,49 @@ if ($action == 'new_category')
             btn.disabled = true;
 
             fetch('ajax_fetch_title.php?url=' + encodeURIComponent(url))
-                .then(response => response.text())
-                .then(text => {
-                    if(text) {
-                        titleInput.value = text;
+                .then(response => response.json())
+                .then(data => {
+                    if(data.error) {
+                        alert(data.error);
                     } else {
-                         alert('Başlık çekilemedi.');
+                        // Set Title
+                        if(data.title) {
+                            titleInput.value = data.title;
+                        }
+
+                        // Set Images
+                        grid.innerHTML = '';
+                        if(data.images && data.images.length > 0) {
+                            imageArea.style.display = 'block';
+                            data.images.forEach(imgUrl => {
+                                var imgDiv = document.createElement('div');
+                                imgDiv.style.cursor = 'pointer';
+                                imgDiv.style.border = '2px solid transparent';
+                                imgDiv.style.borderRadius = '5px';
+                                imgDiv.style.padding = '2px';
+                                imgDiv.innerHTML = '<img src="' + imgUrl + '" style="height: 80px; display:block; border-radius: 3px;">';
+                                
+                                imgDiv.onclick = function() {
+                                    // Deselect all
+                                    Array.from(grid.children).forEach(c => {
+                                        c.style.borderColor = 'transparent';
+                                        c.style.opacity = '0.7';
+                                    });
+                                    // Select current
+                                    this.style.borderColor = '#3498db';
+                                    this.style.opacity = '1';
+                                    imageUrlInput.value = imgUrl;
+                                };
+
+                                grid.appendChild(imgDiv);
+                            });
+                            // Select first one by default if no existing image
+                            if(!imageUrlInput.value && grid.children.length > 0) {
+                                grid.children[0].click();
+                            }
+                        } else {
+                            if(!imageUrlInput.value) imageArea.style.display = 'none';
+                        }
                     }
                 })
                 .catch(err => {
