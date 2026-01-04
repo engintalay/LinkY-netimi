@@ -200,10 +200,38 @@ if ($action == 'new_category')
     </div>
 
     <script>
-        // Simple script to async fetch title if button clicked (Optimistic UI)
-        // Actually our PHP handles it on POST, but let's make it usable for the user to see before saving if they want.
-        // For simplicity, I'll let PHP handle it on save as requested "Başlıklarını mümkğnse sayfaya bağlanııp alacak", which implies automagically.
-        // But a button to test is nice. Not implementing full AJAX for simplicity unless user asks.
+        document.getElementById('fetchBtn').addEventListener('click', function() {
+            var url = document.querySelector('input[name="url"]').value;
+            var titleInput = document.getElementById('titleInput');
+            var btn = this;
+
+            if (!url) {
+                alert('Lütfen önce URL girin.');
+                return;
+            }
+
+            var originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+
+            fetch('ajax_fetch_title.php?url=' + encodeURIComponent(url))
+                .then(response => response.text())
+                .then(text => {
+                    if(text) {
+                        titleInput.value = text;
+                    } else {
+                         alert('Başlık çekilemedi.');
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Bir hata oluştu.');
+                })
+                .finally(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                });
+        });
     </script>
 </body>
 
