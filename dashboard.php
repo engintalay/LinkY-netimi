@@ -59,6 +59,7 @@ $linkStmt->execute($params);
 $links = $linkStmt->fetchAll();
 
 $userInitial = strtoupper(substr($_SESSION['username'], 0, 1));
+$view = $_GET['view'] ?? 'grid';
 ?>
 <!DOCTYPE html>
 <html lang="tr">
@@ -112,6 +113,19 @@ $userInitial = strtoupper(substr($_SESSION['username'], 0, 1));
                 </form>
 
                 <div class="actions">
+                    <div style="display: inline-flex; background: #e0e5ec; border-radius: 10px; padding: 2px; margin-right: 10px; vertical-align: middle;">
+                        <a href="?view=grid<?= isset($_GET['q']) ? '&q='.urlencode($_GET['q']) : '' ?><?= isset($_GET['category']) ? '&category='.urlencode($_GET['category']) : '' ?>" 
+                           title="Kutu Görünümü"
+                           style="padding: 8px 12px; border-radius: 8px; background: <?= $view == 'grid' ? '#fff' : 'transparent' ?>; color: <?= $view == 'grid' ? '#6a11cb' : '#777' ?>; box-shadow: <?= $view == 'grid' ? '0 2px 5px rgba(0,0,0,0.1)' : 'none' ?>;">
+                            <i class="fas fa-th-large"></i>
+                        </a>
+                        <a href="?view=list<?= isset($_GET['q']) ? '&q='.urlencode($_GET['q']) : '' ?><?= isset($_GET['category']) ? '&category='.urlencode($_GET['category']) : '' ?>" 
+                           title="Liste Görünümü"
+                           style="padding: 8px 12px; border-radius: 8px; background: <?= $view == 'list' ? '#fff' : 'transparent' ?>; color: <?= $view == 'list' ? '#6a11cb' : '#777' ?>; box-shadow: <?= $view == 'list' ? '0 2px 5px rgba(0,0,0,0.1)' : 'none' ?>;">
+                            <i class="fas fa-list"></i>
+                        </a>
+                    </div>
+
                     <a href="manage.php?action=new_link" class="btn"><i class="fas fa-plus"></i> Yeni Link</a>
                     <a href="manage.php?action=new_category" class="btn" style="background: var(--secondary-color);"><i
                             class="fas fa-folder-plus"></i> Kategori</a>
@@ -119,7 +133,7 @@ $userInitial = strtoupper(substr($_SESSION['username'], 0, 1));
             </div>
         </section>
 
-        <div class="link-grid">
+        <div class="link-grid <?= $view == 'list' ? 'view-list' : '' ?>">
             <?php foreach ($links as $link): ?>
                 <div class="glass-card link-item" style="padding: 20px; position: relative;">
                     <div style="position: absolute; top: 15px; right: 15px; background: white; padding: 2px 5px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
