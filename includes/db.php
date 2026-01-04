@@ -14,7 +14,13 @@ try {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL UNIQUE,
             password TEXT NOT NULL,
-            role TEXT DEFAULT 'user'
+            role TEXT DEFAULT 'user',
+            failed_attempts INTEGER DEFAULT 0,
+            last_failed_attempt DATETIME,
+            locked_until DATETIME,
+            daily_lock_count INTEGER DEFAULT 0,
+            last_lock_date DATE,
+            is_permanently_locked INTEGER DEFAULT 0
         )",
         "CREATE TABLE IF NOT EXISTS categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,6 +45,10 @@ try {
             PRIMARY KEY (user_id, category_id),
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
             FOREIGN KEY(category_id) REFERENCES categories(id) ON DELETE CASCADE
+        )",
+        "CREATE TABLE IF NOT EXISTS blocked_ips (
+            ip_address TEXT PRIMARY KEY,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )"
     ];
 

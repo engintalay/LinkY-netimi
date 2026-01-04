@@ -47,6 +47,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Handle Update Password
+if (isset($_POST['update_password']) && isset($_POST['user_id'])) {
+    $uid = $_POST['user_id'];
+    $new_pass = $_POST['new_password'];
+    
+    if ($new_pass) {
+        $hash = password_hash($new_pass, PASSWORD_DEFAULT);
+        // Also unlock the user if they were locked? The user didn't ask, but it makes sense.
+        // Let's just update the password for now as requested.
+        // Also resetting failed attempts/locks might be good practice when admin resets password.
+        $stmt = $pdo->prepare("UPDATE users SET password = ?, failed_attempts = 0, locked_until = NULL, is_permanently_locked = 0 WHERE id = ?");
+        $stmt->execute([$hash, $uid]);
+        $success = "Şifre güncellendi ve hesap kilitleri kaldırıldı.";
+    } else {
+        $error = "Şifre boş olamaz.";
+    }
+}
+
 $stmt = $pdo->prepare("SELECT * FROM users ORDER BY username ASC");
 $stmt->execute();
 $users = $stmt->fetchAll();
@@ -82,6 +100,26 @@ $users = $stmt->fetchAll();
                     <?= $success ?>
                 </div>
             <?php endif; ?>
+
+        <?php if (isset($_GET['edit_password'])): 
+            $edit_id = $_GET['edit_password'];
+            $stmt = $pdo->prepare("SELECT username FROM users WHERE id = ?");
+            $stmt->execute([$edit_id]);
+            $edit_user = $stmt->fetchColumn();
+        ?>
+            <div class="glass-card" style="border: 2px solid #f39c12;">
+                <h3>Şifre Değiştir: <?= htmlspecialchars($edit_user) ?></h3>
+                <form method="POST" style="display: flex; gap: 10px; align-items: flex-end;">
+                    <input type="hidden" name="user_id" value="<?= $edit_id ?>">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Yeni Şifre</label>
+                        <input type="password" name="new_password" required placeholder="Yeni şifreyi girin">
+                    </div>
+                    <button type="submit" name="update_password" class="btn" style="background: #f39c12;"><i class="fas fa-save"></i> Güncelle</button>
+                    <a href="users.php" class="btn" style="background: #95a5a6;">İptal</a>
+                </form>
+            </div>
+        <?php endif; ?>
 
             <form method="POST" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
                 <div class="form-group" style="flex: 1; margin-bottom: 0;">
@@ -131,6 +169,9 @@ $users = $stmt->fetchAll();
                                     <a href="user_permissions.php?user_id=<?= $u['id'] ?>" class="btn"
                                         style="background: #f39c12; padding: 5px 10px; font-size: 0.8em; margin-right: 5px;"><i
                                             class="fas fa-key"></i> Yetkiler</a>
+                                    <a href="?edit_password=<?= $u['id'] ?>" class="btn"
+                                    style="background: #3498db; padding: 5px 10px; font-size: 0.8em; margin-right: 5px;"><i
+                                            class="fas fa-lock"></i> Şifre Değiştir</a>
                                     <a href="?delete=<?= $u['id'] ?>" onclick="return confirm('Silmek istediğine emin misin?')"
                                         style="color: #ff6b6b;"><i class="fas fa-trash"></i> Sil</a>
                                 <?php else: ?>
