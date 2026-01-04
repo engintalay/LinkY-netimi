@@ -63,6 +63,15 @@ if (isset($_POST['update_password']) && isset($_POST['user_id'])) {
     } else {
         $error = "Şifre boş olamaz.";
     }
+
+}
+
+// Handle Unlock
+if (isset($_GET['unlock']) && $_GET['unlock']) {
+    $uid = $_GET['unlock'];
+    $stmt = $pdo->prepare("UPDATE users SET failed_attempts = 0, locked_until = NULL, is_permanently_locked = 0, daily_lock_count = 0 WHERE id = ?");
+    $stmt->execute([$uid]);
+    $success = "Kullanıcı kilidi açıldı.";
 }
 
 $stmt = $pdo->prepare("SELECT * FROM users ORDER BY username ASC");
@@ -85,7 +94,10 @@ $users = $stmt->fetchAll();
     <div class="container">
         <header>
             <h1><i class="fas fa-users-cog"></i> Kullanıcı Yönetimi</h1>
-            <a href="../dashboard.php" class="btn" style="background: #95a5a6;">Geri Dön</a>
+            <div>
+                <a href="login_logs.php" class="btn" style="background: #8e44ad; margin-right:5px;"><i class="fas fa-history"></i> Loglar</a>
+                <a href="../dashboard.php" class="btn" style="background: #95a5a6;">Geri Dön</a>
+            </div>
         </header>
 
         <div class="glass-card">
@@ -149,6 +161,7 @@ $users = $stmt->fetchAll();
                         <th style="padding: 10px;">ID</th>
                         <th style="padding: 10px;">Kullanıcı Adı</th>
                         <th style="padding: 10px;">Rol</th>
+                        <th style="padding: 10px;">Durum</th>
                         <th style="padding: 10px;">İşlem</th>
                     </tr>
                 </thead>
@@ -165,7 +178,26 @@ $users = $stmt->fetchAll();
                                     <?= $u['role'] ?>
                                 </span></td>
                             <td style="padding: 10px;">
+                                <?php 
+                                    $isLocked = false;
+                                    if ($u['is_permanently_locked']) {
+                                        echo '<span class="tag" style="background: #c0392b; color: white;"><i class="fas fa-lock"></i> Kalıcı Kilitli</span>';
+                                        $isLocked = true;
+                                    } elseif ($u['locked_until'] && strtotime($u['locked_until']) > time()) {
+                                        echo '<span class="tag" style="background: #e67e22; color: white;"><i class="fas fa-clock"></i> Geçici Kilitli</span>';
+                                        $isLocked = true;
+                                    } else {
+                                        echo '<span class="tag" style="background: #2ecc71; color: white;">Aktif</span>';
+                                    }
+                                ?>
+                            </td>
+                            <td style="padding: 10px;">
                                 <?php if ($u['id'] != $_SESSION['user_id']): ?>
+                                    <?php if ($isLocked): ?>
+                                        <a href="?unlock=<?= $u['id'] ?>" class="btn"
+                                            style="background: #27ae60; padding: 5px 10px; font-size: 0.8em; margin-right: 5px;"><i
+                                                class="fas fa-unlock"></i> Kilidi Aç</a>
+                                    <?php endif; ?>
                                     <a href="user_permissions.php?user_id=<?= $u['id'] ?>" class="btn"
                                         style="background: #f39c12; padding: 5px 10px; font-size: 0.8em; margin-right: 5px;"><i
                                             class="fas fa-key"></i> Yetkiler</a>

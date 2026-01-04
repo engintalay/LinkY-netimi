@@ -49,6 +49,14 @@ try {
         "CREATE TABLE IF NOT EXISTS blocked_ips (
             ip_address TEXT PRIMARY KEY,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )",
+        "CREATE TABLE IF NOT EXISTS login_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT,
+            ip_address TEXT,
+            status TEXT,
+            message TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )"
     ];
 
@@ -79,11 +87,22 @@ try {
             try {
                 $pdo->exec("ALTER TABLE users ADD COLUMN $colName $colType");
             } catch (PDOException $e) {
-                // Ignore error if column already exists (race condition or other DB issue), 
-                // but log if needed. For now, silent fail is safer than crashing.
-                // explicitly silencing to avoid fatal errors on deployment if state is weird
+                // Ignore error if column already exists
             }
         }
+    }
+
+    // Auto-Migration for login_logs (ensure table exists if added later to DB connection)
+    $stmt = $pdo->query("SELECT name FROM sqlite_master WHERE type='table' AND name='login_logs'");
+    if (!$stmt->fetch()) {
+         $pdo->exec("CREATE TABLE IF NOT EXISTS login_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT,
+            ip_address TEXT,
+            status TEXT,
+            message TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )");
     }
 
     // Create default admin user if not exists

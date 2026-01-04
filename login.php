@@ -20,6 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM blocked_ips WHERE ip_address = ?");
     $stmt->execute([$ip_address]);
     if ($stmt->fetchColumn() > 0) {
+        $pdo->prepare("INSERT INTO login_logs (username, ip_address, status, message) VALUES (?, ?, 'blocked', 'IP Blocked')")->execute([$username, $ip_address]);
         die("Erişiminiz engellendi. (IP Blocked)");
     }
 
@@ -30,11 +31,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($user) {
         // 2. Permanent Lock Check
         if ($user['is_permanently_locked']) {
+            $pdo->prepare("INSERT INTO login_logs (username, ip_address, status, message) VALUES (?, ?, 'failure', 'Account Permanently Locked')")->execute([$username, $ip_address]);
             $error = "Hesabınız kalıcı olarak kilitlendi. Yöneticinize başvurun.";
         } 
         // 3. Temporary Lock Check
         elseif ($user['locked_until'] && strtotime($user['locked_until']) > time()) {
             $remaining = ceil((strtotime($user['locked_until']) - time()) / 60);
+            $pdo->prepare("INSERT INTO login_logs (username, ip_address, status, message) VALUES (?, ?, 'failure', 'Account Temporarily Locked')")->execute([$username, $ip_address]);
             $error = "Hesabınız kilitli. Lütfen $remaining dakika sonra tekrar deneyin.";
         }
         else {
@@ -42,6 +45,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (password_verify($password, $user['password'])) {
                 // Success: Reset counters
                 $pdo->prepare("UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = ?")->execute([$user['id']]);
+
+                // Log Success
+                $pdo->prepare("INSERT INTO login_logs (username, ip_address, status, message) VALUES (?, ?, 'success', 'Login Successful')")->execute([$user['username'], $ip_address]);
 
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
@@ -70,6 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         // Permanent Lock
                         $pdo->prepare("UPDATE users SET is_permanently_locked = 1, daily_lock_count = ?, last_lock_date = ? WHERE id = ?")
                             ->execute([$daily_lock_count, $today, $user['id']]);
+                        $pdo->prepare("INSERT INTO login_logs (username, ip_address, status, message) VALUES (?, ?, 'failure', 'Account Locked (Permanent)')")->execute([$username, $ip_address]);
                         $error = "Hesabınız çok fazla hatalı giriş denemesi nedeniyle kalıcı olarak kilitlendi.";
                     } elseif ($daily_lock_count >= 3) {
                         // Block IP (Wait... requirement says "same day 3 times... ip block")
@@ -85,23 +92,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $pdo->prepare("UPDATE users SET locked_until = ?, failed_attempts = 0, daily_lock_count = ?, last_lock_date = ? WHERE id = ?")
                              ->execute([$locked_until, $daily_lock_count, $today, $user['id']]);
                         
+                        $pdo->prepare("INSERT INTO login_logs (username, ip_address, status, message) VALUES (?, ?, 'blocked', 'IP Blocked Triggered')")->execute([$username, $ip_address]);
+
                         $error = "Çok fazla hatalı deneme. IP adresiniz engellendi.";
                     } else {
                         // Just 10 min lock
                         $pdo->prepare("UPDATE users SET locked_until = ?, failed_attempts = 0, daily_lock_count = ?, last_lock_date = ? WHERE id = ?")
                              ->execute([$locked_until, $daily_lock_count, $today, $user['id']]);
+                        $pdo->prepare("INSERT INTO login_logs (username, ip_address, status, message) VALUES (?, ?, 'failure', 'Account Locked (10m)')")->execute([$username, $ip_address]);
                         $error = "3 hatalı deneme yaptınız. Hesabınız 10 dakika kilitlendi.";
                     }
 
                 } else {
                     // Just increment failed attempts
                     $pdo->prepare("UPDATE users SET failed_attempts = ? WHERE id = ?")->execute([$failed_attempts, $user['id']]);
+                    $pdo->prepare("INSERT INTO login_logs (username, ip_address, status, message) VALUES (?, ?, 'failure', 'Wrong Password')")->execute([$username, $ip_address]);
                     $error = "Hatalı kullanıcı adı veya şifre.";
                 }
             }
         }
     } else {
         // User not found, generic error to prevent enumeration (or just stick to "Invalid user/pass")
+        $pdo->prepare("INSERT INTO login_logs (username, ip_address, status, message) VALUES (?, ?, 'failure', 'User Not Found')")->execute([$username, $ip_address]);
         $error = "Hatalı kullanıcı adı veya şifre.";
     }
 }
