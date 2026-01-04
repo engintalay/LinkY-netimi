@@ -135,7 +135,7 @@ $view = $_GET['view'] ?? 'grid';
 
         <div class="link-grid <?= $view == 'list' ? 'view-list' : '' ?>">
             <?php foreach ($links as $link): ?>
-                <div class="glass-card link-item" style="padding: 20px; position: relative;">
+                <div class="glass-card link-item" style="position: relative;">
                     <div style="position: absolute; top: 15px; right: 15px; background: white; padding: 2px 5px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
                         <a href="manage.php?action=edit_link&id=<?= $link['id'] ?>" style="color: #666;"><i
                                 class="fas fa-edit"></i></a>
