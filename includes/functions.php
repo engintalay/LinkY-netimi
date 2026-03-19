@@ -54,11 +54,16 @@ function fetchUrlTitle($url)
 function makeAbsoluteUrl($url, $base)
 {
     if (empty($url)) return '';
+    // Already absolute URL (including data: URLs)
     if (preg_match('/^[a-z]+:\/\//i', $url)) return $url;
+    // Data URLs
+    if (strpos($url, 'data:') === 0) return $url;
+    // Absolute path
     if ($url[0] === '/') {
         $baseParts = parse_url($base);
         return $baseParts['scheme'] . '://' . $baseParts['host'] . $url;
     }
+    // Relative path
     $baseParts = parse_url($base);
     $path = dirname($baseParts['path']);
     return $baseParts['scheme'] . '://' . $baseParts['host'] . $path . '/' . $url;
