@@ -51,6 +51,19 @@ function fetchUrlTitle($url)
     return parse_url($url, PHP_URL_HOST); // Fallback
 }
 
+function makeAbsoluteUrl($url, $base)
+{
+    if (empty($url)) return '';
+    if (preg_match('/^[a-z]+:\/\//i', $url)) return $url;
+    if ($url[0] === '/') {
+        $baseParts = parse_url($base);
+        return $baseParts['scheme'] . '://' . $baseParts['host'] . $url;
+    }
+    $baseParts = parse_url($base);
+    $path = dirname($baseParts['path']);
+    return $baseParts['scheme'] . '://' . $baseParts['host'] . $path . '/' . $url;
+}
+
 function fetchUrlDetails($url)
 {
     $ch = curl_init();
@@ -82,22 +95,34 @@ function fetchUrlDetails($url)
         $data['title'] = parse_url($url, PHP_URL_HOST);
     }
 
+    // Get base URL for resolving relative URLs
+    $baseUrl = $url;
+
     // Images (og:image)
     if (preg_match_all('/<meta property="og:image" content="(.*?)"/i', $html, $matches)) {
         foreach($matches[1] as $img) {
-            $data['images'][] = $img;
+            $data['images'][] = makeAbsoluteUrl($img, $baseUrl);
         }
     }
     // twitter:image
     if (preg_match_all('/<meta name="twitter:image" content="(.*?)"/i', $html, $matches)) {
         foreach($matches[1] as $img) {
-            $data['images'][] = $img;
+            $data['images'][] = makeAbsoluteUrl($img, $baseUrl);
         }
     }
     // link rel="image_src"
     if (preg_match_all('/<link rel="image_src" href="(.*?)"/i', $html, $matches)) {
          foreach($matches[1] as $img) {
-            $data['images'][] = $img;
+            $data['images'][] = makeAbsoluteUrl($img, $baseUrl);
+        }
+    }
+    // Fallback: Find all img tags
+    if (preg_match_all('/<img[^>]+src="([^"]+)"/i', $html, $matches)) {
+        foreach($matches[1] as $img) {
+            $absoluteUrl = makeAbsoluteUrl($img, $baseUrl);
+            if ($absoluteUrl) {
+                $data['images'][] = $absoluteUrl;
+            }
         }
     }
 
