@@ -146,7 +146,7 @@ $view = $_GET['view'] ?? 'grid';
                     
                     <?php if(!empty($link['image_url'])): ?>
                         <div style="height: 150px; overflow: hidden; border-radius: 10px; margin-bottom: 10px;">
-                             <img src="<?= htmlspecialchars($link['image_url']) ?>" style="width: 100%; height: 100%; object-fit: cover;">
+                             <img src="<?= htmlspecialchars($link['image_url'], ENT_QUOTES, 'UTF-8', false) ?>" style="width: 100%; height: 100%; object-fit: cover;">
                         </div>
                     <?php endif; ?>
 
