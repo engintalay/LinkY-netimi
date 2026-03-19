@@ -175,7 +175,7 @@ if ($action == 'new_category')
                         <label>Görsel Seçimi</label>
                         <?php if($editData['image_url'] ?? ''): ?>
                             <div style="margin-bottom:10px;">
-                                <img src="<?= $editData['image_url'] ?>" style="height: 100px; border-radius: 5px; border: 2px solid #3498db;">
+                                <img src="<?= htmlspecialchars_decode($editData['image_url']) ?>" style="height: 100px; border-radius: 5px; border: 2px solid #3498db;">
                                 <p style="font-size:0.8em; color:#666;">Mevcut Görsel</p>
                             </div>
                         <?php endif; ?>
