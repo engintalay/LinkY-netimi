@@ -7,13 +7,18 @@ requireLogin();
 
 // Fetch Categories
 if (isAdmin()) {
-    $catStmt = $pdo->prepare("SELECT * FROM categories ORDER BY name ASC");
+    $catStmt = $pdo->prepare("SELECT c.*, COUNT(l.id) as link_count FROM categories c 
+                              LEFT JOIN links l ON l.category_id = c.id 
+                              GROUP BY c.id 
+                              ORDER BY c.name ASC");
     $catStmt->execute();
 } else {
     // Only permitted categories
-    $catStmt = $pdo->prepare("SELECT c.* FROM categories c 
+    $catStmt = $pdo->prepare("SELECT c.*, COUNT(l.id) as link_count FROM categories c 
+                              LEFT JOIN links l ON l.category_id = c.id
                               JOIN user_category_permissions p ON c.id = p.category_id 
                               WHERE p.user_id = ? 
+                              GROUP BY c.id
                               ORDER BY c.name ASC");
     $catStmt->execute([$_SESSION['user_id']]);
 }
@@ -105,10 +110,10 @@ $view = $_GET['view'] ?? 'grid';
                     <input type="text" name="q" placeholder="Link ara..."
                         value="<?= htmlspecialchars($_GET['q'] ?? '') ?>">
                     <select name="category">
-                        <option value="">Tüm Kategoriler</option>
+                        <option value="">Tüm Kategoriler (<?= count($links) ?> link)</option>
                         <?php foreach ($categories as $cat): ?>
                             <option value="<?= $cat['id'] ?>" <?= (isset($_GET['category']) && $_GET['category'] == $cat['id']) ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($cat['name']) ?><?= empty($cat['visible']) ? ' (gizli)' : '' ?>
+                                <?= htmlspecialchars($cat['name']) ?><?= empty($cat['visible']) ? ' (gizli)' : '' ?> - <?= $cat['link_count'] ?? 0 ?> link
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -141,6 +146,27 @@ $view = $_GET['view'] ?? 'grid';
         </section>
 
         <div class="link-grid <?= $view == 'list' ? 'view-list' : '' ?>">
+            <?php if (count($links) > 0): ?>
+                <div style="grid-column: 1 / -1; padding: 10px; background: #f0f3f7; border-radius: 10px; margin-bottom: 10px; text-align: center; color: #666; font-size: 0.9em;">
+                    <?php 
+                    $searchText = '';
+                    if (isset($_GET['q']) && $_GET['q'] !== '') {
+                        $searchText .= "\"" . htmlspecialchars($_GET['q']) . "\" için ";
+                    }
+                    if (isset($_GET['category']) && $_GET['category'] !== '') {
+                        $catName = '';
+                        foreach ($categories as $cat) {
+                            if ($cat['id'] == $_GET['category']) {
+                                $catName = $cat['name'];
+                                break;
+                            }
+                        }
+                        $searchText .= "\"" . htmlspecialchars($catName) . "\" kategorisinde ";
+                    }
+                    echo $searchText . "<strong>" . count($links) . " kayıt</strong> bulundu.";
+                    ?>
+                </div>
+            <?php endif; ?>
             <?php foreach ($links as $link): ?>
                 <div class="glass-card link-item" style="position: relative;">
                     <div style="position: absolute; top: 15px; right: 15px; background: white; padding: 2px 5px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 10;">
