@@ -252,8 +252,8 @@ if ($action == 'new_category')
                             titleInput.value = data.title;
                         }
 
-                        // Set Description
-                        if(data.description && !descInput.value) {
+                        // Set Description (always update)
+                        if(data.description) {
                             descInput.value = data.description;
                         }
 
