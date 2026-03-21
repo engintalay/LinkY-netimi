@@ -78,6 +78,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $stmt = $pdo->prepare("INSERT INTO links (user_id, category_id, url, title, description, image_url) VALUES (?, ?, ?, ?, ?, ?)");
                 $stmt->execute([$_SESSION['user_id'], $cat_id, $url, $title, $desc, $image_url]);
+                
+                // Remember last used category
+                if ($cat_id) {
+                    $_SESSION['last_category_id'] = $cat_id;
+                }
             }
             header("Location: dashboard.php");
             exit;
@@ -195,8 +200,10 @@ if ($action == 'new_category')
                         <label>Kategori</label>
                         <select name="category_id">
                             <option value="">Kategori Seçin...</option>
-                            <?php foreach ($allCategories as $cat): ?>
-                                <option value="<?= $cat['id'] ?>" <?= (isset($editData['category_id']) && $editData['category_id'] == $cat['id']) ? 'selected' : '' ?>>
+                            <?php 
+                            $defaultCategoryId = $editData['category_id'] ?? ($_SESSION['last_category_id'] ?? '');
+                            foreach ($allCategories as $cat): ?>
+                                <option value="<?= $cat['id'] ?>" <?= ($defaultCategoryId == $cat['id']) ? 'selected' : '' ?>>
                                     <?= htmlspecialchars($cat['name']) ?>
                                 </option>
                             <?php endforeach; ?>
