@@ -1,5 +1,12 @@
 # Değişiklik Günlüğü
 
+## 2026-03-22
+
+### Instagram Resim Kalitesi İyileştirmesi
+- `includes/functions.php` — Instagram linklerinden daha yüksek çözünürlükte resim çekiliyor
+  - `s150x150` gibi küçük boyutlar `s1080x1080` olarak değiştiriliyor
+  - Query parametreleri temizleniyor
+
 ## 2026-03-21
 
 ### Link Resim Popup Özelliği
