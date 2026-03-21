@@ -2,6 +2,11 @@
 
 ## 2026-03-21
 
+### Link Resim Popup Özelliği
+- `dashboard.php` — link resimlerine tıklayınca büyük popup'ta açılıyor
+  - Popup'ın dışına tıklayınca kapanıyor
+  - Resimler %90 ekran boyutuna kadar büyüyebiliyor
+
 ### Kategori Görünürlük Özelliği
 - `includes/db.php` — categories tablosuna `visible` kolonu eklendi (auto-migration, varsayılan: 1/görünür)
 - `categories.php` — her kategorinin yanına göz ikonu eklendi (tıkla → görünür/gizli toggle)

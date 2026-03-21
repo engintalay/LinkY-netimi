@@ -152,7 +152,8 @@ $view = $_GET['view'] ?? 'grid';
                     </div>
                     
                     <?php if(!empty($link['image_url'])): ?>
-                        <div style="height: 150px; overflow: hidden; border-radius: 10px; margin-bottom: 10px;">
+                        <div style="height: 150px; overflow: hidden; border-radius: 10px; margin-bottom: 10px; position: relative; cursor: pointer;" 
+                             class="link-image" data-img="<?= htmlspecialchars_decode($link['image_url']) ?>">
                              <img src="<?= htmlspecialchars_decode($link['image_url']) ?>" style="width: 100%; height: 100%; object-fit: cover;">
                         </div>
                     <?php endif; ?>
@@ -191,6 +192,26 @@ $view = $_GET['view'] ?? 'grid';
         </div>
 
     </div>
+
+    <!-- Image Popup -->
+    <div id="imagePopup" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; cursor:pointer;">
+        <img id="popupImg" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); max-width:90%; max-height:90%; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+    </div>
+
+    <script>
+        document.querySelectorAll('.link-image').forEach(img => {
+            img.addEventListener('click', function() {
+                const popup = document.getElementById('imagePopup');
+                const popupImg = document.getElementById('popupImg');
+                popupImg.src = this.dataset.img;
+                popup.style.display = 'block';
+            });
+        });
+        
+        document.getElementById('imagePopup').addEventListener('click', function() {
+            this.style.display = 'none';
+        });
+    </script>
 
 </body>
 
