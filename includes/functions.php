@@ -150,7 +150,20 @@ function fetchUrlDetails($url)
     if (preg_match_all('/<meta property="og:image" content="(.*?)"/i', $html, $matches)) {
         foreach($matches[1] as $img) {
             $imgUrl = makeAbsoluteUrl($img, $baseUrl);
-            $data['images'][] = $imgUrl;
+            
+            // Instagram: Try to get higher resolution version
+            if (strpos($url, 'instagram.com') !== false && strpos($imgUrl, 'scontent') !== false) {
+                // Keep original small image and also add larger version
+                $data['images'][] = $imgUrl; // Original
+                
+                // Try larger version
+                $largeUrl = preg_replace('/\/s\d+x\d+\//', '/s1080x1080/', $imgUrl);
+                if ($largeUrl !== $imgUrl) {
+                    $data['images'][] = $largeUrl;
+                }
+            } else {
+                $data['images'][] = $imgUrl;
+            }
         }
     }
     // twitter:image
