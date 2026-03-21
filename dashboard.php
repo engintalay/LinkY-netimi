@@ -144,7 +144,8 @@ $view = $_GET['view'] ?? 'grid';
             <?php foreach ($links as $link): ?>
                 <div class="glass-card link-item" style="position: relative;">
                     <div style="position: absolute; top: 15px; right: 15px; background: white; padding: 2px 5px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 10;">
-                        <a href="manage.php?action=edit_link&id=<?= $link['id'] ?>" style="color: #666;"><i
+                        <a href="#" onclick="updateLink(<?= $link['id'] ?>, '<?= htmlspecialchars($link['url']) ?>'); return false;" style="color: #1dd1a1;" title="Güncelle"><i class="fas fa-sync"></i></a>
+                        <a href="manage.php?action=edit_link&id=<?= $link['id'] ?>" style="color: #666; margin-left: 10px;"><i
                                 class="fas fa-edit"></i></a>
                         <a href="manage.php?action=delete_link&id=<?= $link['id'] ?>"
                             onclick="return confirm('Silmek istediğine emin misin?')"
@@ -231,6 +232,40 @@ $view = $_GET['view'] ?? 'grid';
         document.getElementById('imagePopup').addEventListener('click', function() {
             this.style.display = 'none';
         });
+        
+        function updateLink(linkId, url) {
+            fetch('ajax_fetch_title.php?url=' + encodeURIComponent(url))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.title || data.description) {
+                        // Send update request
+                        const formData = new FormData();
+                        formData.append('action', 'update_link_info');
+                        formData.append('id', linkId);
+                        if (data.title) formData.append('title', data.title);
+                        if (data.description) formData.append('description', data.description);
+                        
+                        fetch('update_link_ajax.php', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(result => {
+                            if (result.success) {
+                                location.reload(); // Refresh page to show updates
+                            } else {
+                                alert('Güncelleme hatası: ' + (result.error || 'Bilinmeyen hata'));
+                            }
+                        });
+                    } else {
+                        alert('Güncellenecek bilgi bulunamadı.');
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Güncelleme sırasında hata oluştu.');
+                });
+        }
     </script>
 
 </body>
