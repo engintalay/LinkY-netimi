@@ -76,16 +76,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare("UPDATE links SET url=?, title=?, description=?, image_url=?, category_id=? WHERE id=?");
                 $stmt->execute([$url, $title, $desc, $image_url, $cat_id, $id]);
             } else {
-                $stmt = $pdo->prepare("INSERT INTO links (user_id, category_id, url, title, description, image_url) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$_SESSION['user_id'], $cat_id, $url, $title, $desc, $image_url]);
+                // Check if same user already has this URL
+                $chk = $pdo->prepare("SELECT COUNT(*) FROM links WHERE user_id = ? AND url = ?");
+                $chk->execute([$_SESSION['user_id'], $url]);
                 
-                // Remember last used category
-                if ($cat_id) {
-                    $_SESSION['last_category_id'] = $cat_id;
+                if ($chk->fetchColumn() > 0) {
+                    $error = "Bu linki zaten eklemişsin.";
+                } else {
+                    $stmt = $pdo->prepare("INSERT INTO links (user_id, category_id, url, title, description, image_url) VALUES (?, ?, ?, ?, ?, ?)");
+                    $stmt->execute([$_SESSION['user_id'], $cat_id, $url, $title, $desc, $image_url]);
+                    
+                    // Remember last used category
+                    if ($cat_id) {
+                        $_SESSION['last_category_id'] = $cat_id;
+                    }
+                    
+                    header("Location: dashboard.php");
+                    exit;
                 }
             }
-            header("Location: dashboard.php");
-            exit;
+            if (!$error) {
+                header("Location: dashboard.php");
+                exit;
+            }
         } else {
             $error = "URL gereklidir.";
         }
