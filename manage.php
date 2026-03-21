@@ -167,6 +167,7 @@ if ($action == 'new_category')
                             <button type="button" id="fetchBtn" style="padding: 10px;" title="Bilgileri Çek"><i
                                     class="fas fa-magic"></i> Çek</button>
                         </div>
+                        <small style="color: #666; font-size: 0.8em;">Not: Instagram gibi siteler bot koruması nedeniyle otomatik çekilemeyebilir.</small>
                     </div>
 
                     <!-- Image Selection -->
@@ -182,6 +183,11 @@ if ($action == 'new_category')
                         
                         <div id="fetchedImagesGrid" style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px;">
                             <!-- Images will be injected here via JS -->
+                        </div>
+                        
+                        <div style="margin-top: 10px;">
+                            <input type="url" id="manualImageUrl" placeholder="Veya resim URL'sini manuel girin..." style="width: 70%;">
+                            <button type="button" onclick="addManualImage()" style="padding: 10px; margin-left: 5px;">Ekle</button>
                         </div>
                     </div>
 
@@ -302,6 +308,41 @@ if ($action == 'new_category')
                     btn.disabled = false;
                 });
         });
+        
+        function addManualImage() {
+            var manualUrl = document.getElementById('manualImageUrl').value;
+            var grid = document.getElementById('fetchedImagesGrid');
+            var imageArea = document.getElementById('imageSelectionArea');
+            var imageUrlInput = document.getElementById('imageUrlInput');
+            
+            if (!manualUrl) {
+                alert('Lütfen resim URL\'si girin.');
+                return;
+            }
+            
+            imageArea.style.display = 'block';
+            
+            var imgDiv = document.createElement('div');
+            imgDiv.style.cursor = 'pointer';
+            imgDiv.style.border = '2px solid #3498db';
+            imgDiv.style.borderRadius = '5px';
+            imgDiv.style.padding = '2px';
+            imgDiv.innerHTML = '<img src="' + manualUrl + '" style="height: 80px; display:block; border-radius: 3px;">';
+            
+            imgDiv.onclick = function() {
+                Array.from(grid.children).forEach(c => {
+                    c.style.borderColor = 'transparent';
+                    c.style.opacity = '0.7';
+                });
+                this.style.borderColor = '#3498db';
+                this.style.opacity = '1';
+                imageUrlInput.value = manualUrl;
+            };
+            
+            grid.appendChild(imgDiv);
+            imgDiv.click(); // Auto-select
+            document.getElementById('manualImageUrl').value = '';
+        }
     </script>
 </body>
 
