@@ -121,6 +121,8 @@ function fetchUrlDetails($url)
 
     $data['debug'][] = "HTML Length: " . strlen($html);
     $data['debug'][] = "Contains og:image: " . (strpos($html, 'og:image') !== false ? 'Yes' : 'No');
+    $data['debug'][] = "Contains profile_pic_url: " . (strpos($html, 'profile_pic_url') !== false ? 'Yes' : 'No');
+    $data['debug'][] = "Contains instagram.com/static: " . (strpos($html, 'instagram.com/static') !== false ? 'Yes' : 'No');
 
     // Description
     if (preg_match('/<meta name="description" content="(.*?)"/i', $html, $matches)) {
@@ -194,6 +196,19 @@ function fetchUrlDetails($url)
             foreach($matches[1] as $img) {
                 $imgUrl = makeAbsoluteUrl($img, $baseUrl);
                 $data['images'][] = $imgUrl;
+            }
+        }
+        
+        // Try to find profile_pic_url in JSON data
+        if (preg_match('/"profile_pic_url":"([^"]+)"/', $html, $matches)) {
+            $profilePic = str_replace('\/', '/', $matches[1]);
+            $data['images'][] = $profilePic;
+        }
+        
+        // Try to find any instagram CDN images
+        if (preg_match_all('/https:\/\/[^"]*\.cdninstagram\.com[^"]*\.jpg/', $html, $matches)) {
+            foreach($matches[0] as $img) {
+                $data['images'][] = $img;
             }
         }
     }
