@@ -96,7 +96,7 @@ function fetchUrlDetails($url)
 
     // Title
     if (preg_match('/<title>(.*?)<\/title>/is', $html, $matches)) {
-        $data['title'] = trim($matches[1]);
+        $data['title'] = html_entity_decode(trim($matches[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
     } else {
         $data['title'] = parse_url($url, PHP_URL_HOST);
     }
