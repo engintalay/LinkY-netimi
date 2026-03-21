@@ -127,8 +127,8 @@ $view = $_GET['view'] ?? 'grid';
                     </div>
 
                     <a href="manage.php?action=new_link" class="btn"><i class="fas fa-plus"></i> Yeni Link</a>
-                    <a href="manage.php?action=new_category" class="btn" style="background: var(--secondary-color);"><i
-                            class="fas fa-folder-plus"></i> Kategori</a>
+                    <a href="categories.php" class="btn" style="background: var(--secondary-color);"><i
+                            class="fas fa-folder-plus"></i> Kategoriler</a>
                 </div>
             </div>
         </section>
