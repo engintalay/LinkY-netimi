@@ -124,6 +124,7 @@ function fetchUrlDetails($url)
     $data['debug'][] = "Contains profile_pic_url: " . (strpos($html, 'profile_pic_url') !== false ? 'Yes' : 'No');
     $data['debug'][] = "Contains fbcdn.net: " . (strpos($html, 'fbcdn.net') !== false ? 'Yes' : 'No');
     $data['debug'][] = "Contains instagram.com/static: " . (strpos($html, 'instagram.com/static') !== false ? 'Yes' : 'No');
+    $data['debug'][] = "HTML Sample: " . substr($html, 0, 500) . "...";
 
     // Description
     if (preg_match('/<meta name="description" content="(.*?)"/i', $html, $matches)) {
