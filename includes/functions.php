@@ -106,11 +106,11 @@ function fetchUrlDetails($url)
 
     // Description
     if (preg_match('/<meta name="description" content="(.*?)"/i', $html, $matches)) {
-        $data['description'] = trim($matches[1]);
+        $data['description'] = html_entity_decode(trim($matches[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
     } elseif (preg_match('/<meta property="og:description" content="(.*?)"/i', $html, $matches)) {
-        $data['description'] = trim($matches[1]);
+        $data['description'] = html_entity_decode(trim($matches[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
     } elseif (preg_match('/<meta name="twitter:description" content="(.*?)"/i', $html, $matches)) {
-        $data['description'] = trim($matches[1]);
+        $data['description'] = html_entity_decode(trim($matches[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
 
     // Images (og:image)
