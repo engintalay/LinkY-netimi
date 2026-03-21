@@ -103,10 +103,18 @@ function fetchUrlDetails($url)
     if (curl_errno($ch)) {
         curl_close($ch);
         $data['title'] = parse_url($url, PHP_URL_HOST);
+        $data['error'] = 'CURL Error: ' . curl_error($ch);
         return $data;
     }
 
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
+
+    if ($httpCode !== 200) {
+        $data['title'] = parse_url($url, PHP_URL_HOST);
+        $data['error'] = "HTTP $httpCode";
+        return $data;
+    }
 
     // Title
     if (strpos($url, 'instagram.com') !== false) {
@@ -123,9 +131,6 @@ function fetchUrlDetails($url)
                 $user = $jsonData['entry_data']['ProfilePage'][0]['graphql']['user'];
                 if (!empty($user['full_name'])) {
                     $data['title'] = $user['full_name'] . " (@" . $user['username'] . ") - Instagram";
-                }
-                if (!empty($user['profile_pic_url_hd'])) {
-                    $data['images'][] = $user['profile_pic_url_hd'];
                 }
             }
         }
@@ -145,21 +150,23 @@ function fetchUrlDetails($url)
     if (preg_match_all('/<meta property="og:image" content="(.*?)"/i', $html, $matches)) {
         foreach($matches[1] as $img) {
             $imgUrl = makeAbsoluteUrl($img, $baseUrl);
-            
-            // Instagram: Try to get higher resolution version
-            if (strpos($url, 'instagram.com') !== false && strpos($imgUrl, 'scontent') !== false) {
-                // Replace size parameters for higher resolution
-                $imgUrl = preg_replace('/\/s\d+x\d+\//', '/s1080x1080/', $imgUrl);
-                $imgUrl = preg_replace('/\?.*$/', '', $imgUrl); // Remove query params
-            }
-            
             $data['images'][] = $imgUrl;
         }
     }
     // twitter:image
     if (preg_match_all('/<meta name="twitter:image" content="(.*?)"/i', $html, $matches)) {
         foreach($matches[1] as $img) {
-            $data['images'][] = makeAbsoluteUrl($img, $baseUrl);
+            $imgUrl = makeAbsoluteUrl($img, $baseUrl);
+            $data['images'][] = $imgUrl;
+        }
+    }
+    // Instagram: Also try property="twitter:image"
+    if (strpos($url, 'instagram.com') !== false) {
+        if (preg_match_all('/<meta property="twitter:image" content="(.*?)"/i', $html, $matches)) {
+            foreach($matches[1] as $img) {
+                $imgUrl = makeAbsoluteUrl($img, $baseUrl);
+                $data['images'][] = $imgUrl;
+            }
         }
     }
     // link rel="image_src"
