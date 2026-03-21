@@ -195,7 +195,12 @@ $view = $_GET['view'] ?? 'grid';
 
     <!-- Image Popup -->
     <div id="imagePopup" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; cursor:pointer;">
-        <img id="popupImg" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); max-width:90%; max-height:90%; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+        <img id="popupImg" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); max-width:90%; max-height:90%; min-width:400px; min-height:300px; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.5); object-fit:contain;">
+    </div>
+
+    <!-- Image Popup -->
+    <div id="imagePopup" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; cursor:pointer;">
+        <img id="popupImg" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); max-width:95%; max-height:95%; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
     </div>
 
     <script>
@@ -204,6 +209,21 @@ $view = $_GET['view'] ?? 'grid';
                 const popup = document.getElementById('imagePopup');
                 const popupImg = document.getElementById('popupImg');
                 popupImg.src = this.dataset.img;
+                
+                // Ensure minimum display size
+                popupImg.onload = function() {
+                    const minWidth = Math.min(600, window.innerWidth * 0.8);
+                    const minHeight = Math.min(400, window.innerHeight * 0.6);
+                    
+                    if (this.naturalWidth < minWidth || this.naturalHeight < minHeight) {
+                        this.style.width = minWidth + 'px';
+                        this.style.height = 'auto';
+                    } else {
+                        this.style.width = 'auto';
+                        this.style.height = 'auto';
+                    }
+                };
+                
                 popup.style.display = 'block';
             });
         });
