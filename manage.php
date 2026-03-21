@@ -251,6 +251,13 @@ if ($action == 'new_category')
                             descInput.value = data.description;
                         }
 
+                        // Show debug info if available
+                        if(data.debug && data.debug.length > 0) {
+                            console.log('Debug Info:', data.debug);
+                            // Uncomment next line to see debug as alert
+                            // alert('Debug: ' + data.debug.join(', '));
+                        }
+
                         // Set Images
                         grid.innerHTML = '';
                         if(data.images && data.images.length > 0) {
