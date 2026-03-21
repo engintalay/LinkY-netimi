@@ -97,7 +97,8 @@ function fetchUrlDetails($url)
     
     $data = [
         'title' => '',
-        'images' => []
+        'images' => [],
+        'debug' => []
     ];
 
     if (curl_errno($ch)) {
@@ -113,8 +114,12 @@ function fetchUrlDetails($url)
     if ($httpCode !== 200) {
         $data['title'] = parse_url($url, PHP_URL_HOST);
         $data['error'] = "HTTP $httpCode";
+        $data['debug'][] = "HTTP Status: $httpCode";
         return $data;
     }
+
+    $data['debug'][] = "HTML Length: " . strlen($html);
+    $data['debug'][] = "Contains og:image: " . (strpos($html, 'og:image') !== false ? 'Yes' : 'No');
 
     // Title
     if (strpos($url, 'instagram.com') !== false) {
