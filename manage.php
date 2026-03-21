@@ -220,6 +220,7 @@ if ($action == 'new_category')
         document.getElementById('fetchBtn').addEventListener('click', function() {
             var url = document.querySelector('input[name="url"]').value;
             var titleInput = document.getElementById('titleInput');
+            var descInput = document.querySelector('textarea[name="description"]');
             var imageUrlInput = document.getElementById('imageUrlInput');
             var imageArea = document.getElementById('imageSelectionArea');
             var grid = document.getElementById('fetchedImagesGrid');
@@ -243,6 +244,11 @@ if ($action == 'new_category')
                         // Set Title
                         if(data.title) {
                             titleInput.value = data.title;
+                        }
+
+                        // Set Description
+                        if(data.description && !descInput.value) {
+                            descInput.value = data.description;
                         }
 
                         // Set Images

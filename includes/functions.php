@@ -97,6 +97,7 @@ function fetchUrlDetails($url)
     
     $data = [
         'title' => '',
+        'description' => '',
         'images' => [],
         'debug' => []
     ];
@@ -120,6 +121,15 @@ function fetchUrlDetails($url)
 
     $data['debug'][] = "HTML Length: " . strlen($html);
     $data['debug'][] = "Contains og:image: " . (strpos($html, 'og:image') !== false ? 'Yes' : 'No');
+
+    // Description
+    if (preg_match('/<meta name="description" content="(.*?)"/i', $html, $matches)) {
+        $data['description'] = trim($matches[1]);
+    } elseif (preg_match('/<meta property="og:description" content="(.*?)"/i', $html, $matches)) {
+        $data['description'] = trim($matches[1]);
+    } elseif (preg_match('/<meta name="twitter:description" content="(.*?)"/i', $html, $matches)) {
+        $data['description'] = trim($matches[1]);
+    }
 
     // Title
     if (strpos($url, 'instagram.com') !== false) {
