@@ -122,6 +122,7 @@ function fetchUrlDetails($url)
     $data['debug'][] = "HTML Length: " . strlen($html);
     $data['debug'][] = "Contains og:image: " . (strpos($html, 'og:image') !== false ? 'Yes' : 'No');
     $data['debug'][] = "Contains profile_pic_url: " . (strpos($html, 'profile_pic_url') !== false ? 'Yes' : 'No');
+    $data['debug'][] = "Contains fbcdn.net: " . (strpos($html, 'fbcdn.net') !== false ? 'Yes' : 'No');
     $data['debug'][] = "Contains instagram.com/static: " . (strpos($html, 'instagram.com/static') !== false ? 'Yes' : 'No');
 
     // Description
@@ -208,6 +209,15 @@ function fetchUrlDetails($url)
         // Try to find any instagram CDN images
         if (preg_match_all('/https:\/\/[^"]*\.cdninstagram\.com[^"]*\.jpg/', $html, $matches)) {
             foreach($matches[0] as $img) {
+                $data['images'][] = $img;
+            }
+        }
+        
+        // Try to find fbcdn.net images (new Instagram CDN)
+        if (preg_match_all('/https:\/\/[^"]*\.fbcdn\.net[^"]*\.jpg[^"]*/', $html, $matches)) {
+            foreach($matches[0] as $img) {
+                // Clean up HTML entities
+                $img = html_entity_decode($img);
                 $data['images'][] = $img;
             }
         }
