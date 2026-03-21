@@ -93,6 +93,18 @@ try {
         }
     }
 
+    // Auto-Migration for categories table (visible)
+    $stmt = $pdo->query("PRAGMA table_info(categories)");
+    $catCols = [];
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $catCols[] = $row['name'];
+    }
+    if (!in_array('visible', $catCols)) {
+        try {
+            $pdo->exec("ALTER TABLE categories ADD COLUMN visible INTEGER DEFAULT 1");
+        } catch (PDOException $e) {}
+    }
+
     // Auto-Migration for links table (image_url)
     $stmt = $pdo->query("PRAGMA table_info(links)");
     $linkCols = [];

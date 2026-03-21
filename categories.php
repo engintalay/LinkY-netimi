@@ -17,9 +17,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($act === 'add') {
         $name = sanitize($_POST['name'] ?? '');
+        $visible = isset($_POST['visible']) ? 1 : 0;
         if ($name) {
-            $stmt = $pdo->prepare("INSERT INTO categories (name, user_id) VALUES (?, ?)");
-            $stmt->execute([$name, $_SESSION['user_id']]);
+            $stmt = $pdo->prepare("INSERT INTO categories (name, user_id, visible) VALUES (?, ?, ?)");
+            $stmt->execute([$name, $_SESSION['user_id'], $visible]);
             $success = 'Kategori eklendi.';
         } else {
             $error = 'Kategori adı boş olamaz.';
@@ -33,6 +34,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $pdo->prepare("UPDATE categories SET name = ? WHERE id = ?");
             $stmt->execute([$name, $id]);
             $success = 'Kategori güncellendi.';
+        }
+    }
+
+    if ($act === 'toggle_visible') {
+        $id = (int) ($_POST['id'] ?? 0);
+        if ($id) {
+            $pdo->prepare("UPDATE categories SET visible = CASE WHEN visible = 1 THEN 0 ELSE 1 END WHERE id = ?")->execute([$id]);
+            $success = 'Görünürlük güncellendi.';
         }
     }
 
@@ -123,6 +132,15 @@ $cats = $pdo->query("SELECT c.*, COUNT(l.id) as link_count
                     </form>
                 </td>
                 <td><span class="badge"><?= $cat['link_count'] ?> link</span></td>
+                <td>
+                    <form method="POST" style="display:inline;">
+                        <input type="hidden" name="act" value="toggle_visible">
+                        <input type="hidden" name="id" value="<?= $cat['id'] ?>">
+                        <button type="submit" class="icon-btn" title="<?= $cat['visible'] ? 'Gizle' : 'Göster' ?>" style="color: <?= $cat['visible'] ? '#1dd1a1' : '#ccc' ?>;">
+                            <i class="fas fa-<?= $cat['visible'] ? 'eye' : 'eye-slash' ?>"></i>
+                        </button>
+                    </form>
+                </td>
                 <td style="white-space:nowrap;">
                     <button class="icon-btn edit" title="Düzenle" onclick="startEdit(this)"><i class="fas fa-pen"></i></button>
                     <button class="icon-btn save" title="Kaydet" onclick="saveEdit(this)"><i class="fas fa-check"></i></button>
@@ -141,6 +159,9 @@ $cats = $pdo->query("SELECT c.*, COUNT(l.id) as link_count
         <form method="POST" class="add-row">
             <input type="hidden" name="act" value="add">
             <input type="text" name="name" placeholder="Yeni kategori adı..." required>
+            <label style="display:flex; align-items:center; gap:5px; white-space:nowrap; font-size:0.85em; cursor:pointer;">
+                <input type="checkbox" name="visible" checked style="width:auto; box-shadow:none;"> Görünür
+            </label>
             <button type="submit" class="btn"><i class="fas fa-plus"></i> Ekle</button>
         </form>
     </div>

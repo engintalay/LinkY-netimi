@@ -41,6 +41,13 @@ $linkSql = "SELECT links.*, categories.name as category_name
             LEFT JOIN categories ON links.category_id = categories.id 
             $where";
 
+// Hide links from invisible categories unless searching or filtering by category
+$isSearching = isset($_GET['q']) && $_GET['q'] !== '';
+$isFilteringCategory = isset($_GET['category']) && $_GET['category'] !== '';
+if (!$isSearching && !$isFilteringCategory) {
+    $linkSql .= " AND (categories.visible = 1 OR categories.visible IS NULL)";
+}
+
 // For non-admins, restrict links to allowed categories
 if (!isAdmin()) {
     if (empty($categoryIds)) {
@@ -101,7 +108,7 @@ $view = $_GET['view'] ?? 'grid';
                         <option value="">Tüm Kategoriler</option>
                         <?php foreach ($categories as $cat): ?>
                             <option value="<?= $cat['id'] ?>" <?= (isset($_GET['category']) && $_GET['category'] == $cat['id']) ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($cat['name']) ?>
+                                <?= htmlspecialchars($cat['name']) ?><?= empty($cat['visible']) ? ' (gizli)' : '' ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
