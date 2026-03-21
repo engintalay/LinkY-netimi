@@ -86,7 +86,9 @@ function fetchUrlDetails($url)
             'Accept-Language: en-US,en;q=0.5',
             'Accept-Encoding: gzip, deflate',
             'Connection: keep-alive',
+            'Cache-Control: no-cache',
         ]);
+        curl_setopt($ch, CURLOPT_ENCODING, 'gzip');
     } else {
         curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (compatible; LinkManager/1.0)');
     }
@@ -107,10 +109,33 @@ function fetchUrlDetails($url)
     curl_close($ch);
 
     // Title
-    if (preg_match('/<title>(.*?)<\/title>/is', $html, $matches)) {
-        $data['title'] = trim($matches[1]);
+    if (strpos($url, 'instagram.com') !== false) {
+        // Instagram için özel parsing
+        if (preg_match('/instagram\.com\/([^\/\?]+)/', $url, $matches)) {
+            $username = $matches[1];
+            $data['title'] = "@$username - Instagram";
+        }
+        
+        // Instagram JSON data'sını bul
+        if (preg_match('/window\._sharedData = ({.*?});/', $html, $jsonMatches)) {
+            $jsonData = json_decode($jsonMatches[1], true);
+            if (isset($jsonData['entry_data']['ProfilePage'][0]['graphql']['user'])) {
+                $user = $jsonData['entry_data']['ProfilePage'][0]['graphql']['user'];
+                if (!empty($user['full_name'])) {
+                    $data['title'] = $user['full_name'] . " (@" . $user['username'] . ") - Instagram";
+                }
+                if (!empty($user['profile_pic_url_hd'])) {
+                    $data['images'][] = $user['profile_pic_url_hd'];
+                }
+            }
+        }
     } else {
-        $data['title'] = parse_url($url, PHP_URL_HOST);
+        // Normal title parsing
+        if (preg_match('/<title>(.*?)<\/title>/is', $html, $matches)) {
+            $data['title'] = trim($matches[1]);
+        } else {
+            $data['title'] = parse_url($url, PHP_URL_HOST);
+        }
     }
 
     // Get base URL for resolving relative URLs
