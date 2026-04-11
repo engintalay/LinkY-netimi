@@ -210,6 +210,7 @@ $view = $_GET['view'] ?? 'grid';
                         <?= htmlspecialchars($link['description'] ?? '') ?>
                     </p>
 
+                    <input type="hidden" class="link-url" value="<?= htmlspecialchars($link['url']) ?>">
                     <a href="<?= htmlspecialchars($link['url']) ?>" target="_blank"
                         style="font-size: 0.9em; word-break: break-all; opacity: 0.7;">
                         <i class="fas fa-external-link-alt"></i>
