@@ -141,6 +141,8 @@ $view = $_GET['view'] ?? 'grid';
                     <a href="manage.php?action=new_link" class="btn"><i class="fas fa-plus"></i> Yeni Link</a>
                     <a href="categories.php" class="btn" style="background: var(--secondary-color);"><i
                             class="fas fa-folder-plus"></i> Kategoriler</a>
+                    <button type="button" class="btn" onclick="updateAllLinks()" style="background: #2d9cdb;"><i
+                            class="fas fa-sync"></i> Tümünü Güncelle</button>
                 </div>
             </div>
         </section>
@@ -168,7 +170,7 @@ $view = $_GET['view'] ?? 'grid';
                 </div>
             <?php endif; ?>
             <?php foreach ($links as $link): ?>
-                <div class="glass-card link-item" style="position: relative;">
+                <div class="glass-card link-item" data-id="<?= $link['id'] ?>" style="position: relative;">
                     <div style="position: absolute; top: 15px; right: 15px; background: white; padding: 2px 5px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 10;">
                         <a href="#" onclick="updateLink(<?= $link['id'] ?>, '<?= htmlspecialchars($link['url']) ?>'); return false;" style="color: #1dd1a1;" title="Güncelle"><i class="fas fa-sync"></i></a>
                         <a href="manage.php?action=edit_link&id=<?= $link['id'] ?>" style="color: #666; margin-left: 10px;"><i
@@ -297,6 +299,79 @@ $view = $_GET['view'] ?? 'grid';
                     console.error(err);
                     alert('Güncelleme sırasında hata oluştu.');
                 });
+        }
+        
+        function updateAllLinks() {
+            if (!confirm('Tüm linklerin başlığı ve resimleri güncellenecek. Devam edilsin mi?')) {
+                return;
+            }
+            
+            const linkIds = [];
+            document.querySelectorAll('.link-item').forEach(item => {
+                const id = item.dataset.id;
+                if (id) linkIds.push(id);
+            });
+            
+            if (linkIds.length === 0) {
+                alert('Güncellenecek link bulunamadı.');
+                return;
+            }
+            
+            let completed = 0;
+            let errors = 0;
+            
+            function processNext() {
+                if (linkIds.length === 0) {
+                    alert(`Güncelleme tamamlandı: ${completed} başarılı, ${errors} hata`);
+                    location.reload();
+                    return;
+                }
+                
+                const id = linkIds.shift();
+                const urlInput = document.querySelector(`[data-id="${id}"] .link-url`);
+                const url = urlInput ? urlInput.value : '';
+                
+                if (!url) {
+                    errors++;
+                    processNext();
+                    return;
+                }
+                
+                fetch('ajax_fetch_title.php?url=' + encodeURIComponent(url))
+                    .then(response => response.json())
+                    .then(data => {
+                        const formData = new FormData();
+                        formData.append('action', 'update_link_info');
+                        formData.append('id', id);
+                        if (data.title) formData.append('title', data.title);
+                        if (data.description) formData.append('description', data.description);
+                        if (data.images && data.images.length > 0) formData.append('image_url', data.images[0]);
+                        
+                        fetch('update_link_ajax.php', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(result => {
+                            if (result.success) {
+                                completed++;
+                            } else {
+                                errors++;
+                            }
+                            processNext();
+                        })
+                        .catch(() => {
+                            errors++;
+                            processNext();
+                        });
+                    })
+                    .catch(() => {
+                        errors++;
+                        processNext();
+                    });
+            }
+            
+            processNext();
         }
     </script>
 
