@@ -146,3 +146,55 @@ function fetchUrlDetails($url)
 
     return $data;
 }
+
+function downloadImage($imageUrl, $imagesDir = 'images/')
+{
+    if (empty($imageUrl)) return '';
+    
+    // Validate URL
+    if (!filter_var($imageUrl, FILTER_VALIDATE_URL)) return '';
+    
+    // Initialize cURL
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $imageUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+    curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (compatible; LinkManager/1.0)');
+    curl_setopt($ch, CURLOPT_HEADER, 1);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+    curl_close($ch);
+    
+    if ($httpCode !== 200 || empty($response)) return '';
+    
+    $header = substr($response, 0, $headerSize);
+    $body = substr($response, $headerSize);
+    
+    // Check content type
+    if (!preg_match('/Content-Type:\s*image\/([a-z0-9]+)/i', $header, $contentTypeMatch)) {
+        return '';
+    }
+    
+    $extension = strtolower($contentTypeMatch[1]);
+    if (!in_array($extension, ['jpeg', 'jpg', 'png', 'gif', 'webp'])) {
+        return '';
+    }
+    
+    // Limit file size (5MB)
+    if (strlen($body) > 5 * 1024 * 1024) return '';
+    
+    // Generate unique filename
+    $filename = uniqid('img_', true) . '.' . $extension;
+    $filepath = $imagesDir . $filename;
+    
+    // Save file
+    if (file_put_contents($filepath, $body) === false) {
+        return '';
+    }
+    
+    return $filepath;
+}

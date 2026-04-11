@@ -179,9 +179,14 @@ $view = $_GET['view'] ?? 'grid';
                     </div>
                     
                     <?php if(!empty($link['image_url'])): ?>
+                        <?php
+                        $imgSrc = !empty($link['local_image']) && file_exists($link['local_image']) 
+                            ? $link['local_image'] 
+                            : $link['image_url'];
+                        ?>
                         <div style="height: 150px; overflow: hidden; border-radius: 10px; margin-bottom: 10px; position: relative; cursor: pointer;" 
                              class="link-image" data-img="<?= htmlspecialchars_decode($link['image_url']) ?>">
-                             <img src="<?= htmlspecialchars_decode($link['image_url']) ?>" style="width: 100%; height: 100%; object-fit: cover;">
+                             <img src="<?= htmlspecialchars_decode($imgSrc) ?>" style="width: 100%; height: 100%; object-fit: cover;">
                         </div>
                     <?php endif; ?>
 
@@ -263,13 +268,14 @@ $view = $_GET['view'] ?? 'grid';
             fetch('ajax_fetch_title.php?url=' + encodeURIComponent(url))
                 .then(response => response.json())
                 .then(data => {
-                    if (data.title || data.description) {
+                    if (data.title || data.description || (data.images && data.images.length > 0)) {
                         // Send update request
                         const formData = new FormData();
                         formData.append('action', 'update_link_info');
                         formData.append('id', linkId);
                         if (data.title) formData.append('title', data.title);
                         if (data.description) formData.append('description', data.description);
+                        if (data.images && data.images.length > 0) formData.append('image_url', data.images[0]);
                         
                         fetch('update_link_ajax.php', {
                             method: 'POST',

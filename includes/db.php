@@ -116,6 +116,11 @@ try {
             $pdo->exec("ALTER TABLE links ADD COLUMN image_url TEXT");
         } catch (PDOException $e) {}
     }
+    if (!in_array('local_image', $linkCols)) {
+         try {
+            $pdo->exec("ALTER TABLE links ADD COLUMN local_image TEXT");
+        } catch (PDOException $e) {}
+    }
 
     // Auto-Migration for login_logs (ensure table exists if added later to DB connection)
     $stmt = $pdo->query("SELECT name FROM sqlite_master WHERE type='table' AND name='login_logs'");

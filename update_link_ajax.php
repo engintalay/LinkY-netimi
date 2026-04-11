@@ -18,8 +18,9 @@ $id = (int) ($_POST['id'] ?? 0);
 if ($action === 'update_link_info' && $id) {
     $title = sanitize($_POST['title'] ?? '');
     $description = sanitize($_POST['description'] ?? '');
+    $image_url = sanitize($_POST['image_url'] ?? '');
     
-    if ($title || $description) {
+    if ($title || $description || $image_url) {
         $updates = [];
         $params = [];
         
@@ -31,6 +32,27 @@ if ($action === 'update_link_info' && $id) {
         if ($description) {
             $updates[] = 'description = ?';
             $params[] = $description;
+        }
+        
+        if ($image_url) {
+            // Get existing local_image for cleanup
+            $stmt = $pdo->prepare("SELECT local_image, image_url FROM links WHERE id = ?");
+            $stmt->execute([$id]);
+            $existing = $stmt->fetch();
+            
+            $local_image = $existing['local_image'] ?? '';
+            if (!empty($image_url) && $image_url !== $existing['image_url']) {
+                // New image URL - delete old local image and download new one
+                if (!empty($local_image) && file_exists($local_image)) {
+                    unlink($local_image);
+                }
+                $local_image = downloadImage($image_url);
+            }
+            
+            $updates[] = 'image_url = ?';
+            $params[] = $image_url;
+            $updates[] = 'local_image = ?';
+            $params[] = $local_image;
         }
         
         $params[] = $id;

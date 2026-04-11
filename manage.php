@@ -30,6 +30,14 @@ if ($action == 'delete_category' && $id) {
 
 // Handle Delete Links
 if ($action == 'delete_link' && $id) {
+    // Get link data to delete local image
+    $stmt = $pdo->prepare("SELECT local_image FROM links WHERE id = ?");
+    $stmt->execute([$id]);
+    $link = $stmt->fetch();
+    if ($link && !empty($link['local_image']) && file_exists($link['local_image'])) {
+        unlink($link['local_image']);
+    }
+    
     $stmt = $pdo->prepare("DELETE FROM links WHERE id = ?");
     $stmt->execute([$id]);
     header("Location: dashboard.php");
@@ -73,8 +81,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($url) {
             if ($id) {
-                $stmt = $pdo->prepare("UPDATE links SET url=?, title=?, description=?, image_url=?, category_id=? WHERE id=?");
-                $stmt->execute([$url, $title, $desc, $image_url, $cat_id, $id]);
+                // Get existing local_image for cleanup
+                $stmt = $pdo->prepare("SELECT local_image, image_url FROM links WHERE id = ?");
+                $stmt->execute([$id]);
+                $existing = $stmt->fetch();
+                
+                $local_image = $existing['local_image'] ?? '';
+                if (!empty($image_url) && $image_url !== $existing['image_url']) {
+                    // New image URL - delete old local image and download new one
+                    if (!empty($local_image) && file_exists($local_image)) {
+                        unlink($local_image);
+                    }
+                    $local_image = downloadImage($image_url);
+                }
+                
+                $stmt = $pdo->prepare("UPDATE links SET url=?, title=?, description=?, image_url=?, local_image=?, category_id=? WHERE id=?");
+                $stmt->execute([$url, $title, $desc, $image_url, $local_image, $cat_id, $id]);
             } else {
                 // Check if same user already has this URL
                 $chk = $pdo->prepare("SELECT COUNT(*) FROM links WHERE user_id = ? AND url = ?");
@@ -83,8 +105,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($chk->fetchColumn() > 0) {
                     $error = "Bu linki zaten eklemişsin.";
                 } else {
-                    $stmt = $pdo->prepare("INSERT INTO links (user_id, category_id, url, title, description, image_url) VALUES (?, ?, ?, ?, ?, ?)");
-                    $stmt->execute([$_SESSION['user_id'], $cat_id, $url, $title, $desc, $image_url]);
+                    $local_image = downloadImage($image_url);
+                    $stmt = $pdo->prepare("INSERT INTO links (user_id, category_id, url, title, description, image_url, local_image) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                    $stmt->execute([$_SESSION['user_id'], $cat_id, $url, $title, $desc, $image_url, $local_image]);
                     
                     // Remember last used category
                     if ($cat_id) {
