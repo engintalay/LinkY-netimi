@@ -71,6 +71,11 @@ function makeAbsoluteUrl($url, $base)
 
 function fetchUrlDetails($url)
 {
+    // Handle Instagram URLs specially
+    if (strpos($url, 'instagram.com') !== false) {
+        return fetchInstagramDetails($url);
+    }
+    
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
@@ -144,6 +149,75 @@ function fetchUrlDetails($url)
     $data['images'] = array_unique($data['images']);
     $data['images'] = array_values($data['images']);
 
+    return $data;
+}
+
+function fetchInstagramDetails($url)
+{
+    $data = [
+        'title' => 'Instagram',
+        'description' => '',
+        'images' => []
+    ];
+    
+    // Instagram oEmbed API requires authentication, so we'll use a workaround
+    // Try to get the post ID and fetch via a public endpoint
+    
+    // Pattern for instagram.com/p/POSTID or /reels/POSTID
+    $post_id = '';
+    if (preg_match('/instagram\.com\/(?:p|reels)\/([a-zA-Z0-9_-]+)/', $url, $matches)) {
+        $post_id = $matches[1];
+    }
+    
+    if ($post_id) {
+        // Use Instagram's public embed endpoint
+        $embed_url = "https://api.instagram.com/oembed/?url=https://www.instagram.com/p/{$post_id}/";
+        
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $embed_url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (compatible; LinkManager/1.0)');
+        
+        $response = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        
+        if ($http_code === 200 && $response) {
+            $json = json_decode($response, true);
+            if (isset($json['thumbnail_url'])) {
+                $data['images'][] = $json['thumbnail_url'];
+            }
+            if (isset($json['title'])) {
+                $data['title'] = $json['title'];
+            }
+        }
+    }
+    
+    // If still no image, try to extract from HTML
+    if (empty($data['images'])) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (compatible; LinkManager/1.0)');
+        
+        $html = curl_exec($ch);
+        curl_close($ch);
+        
+        // Look for og:image in HTML
+        if (preg_match('/<meta property="og:image" content="([^"]+)"/i', $html, $matches)) {
+            $data['images'][] = makeAbsoluteUrl($matches[1], $url);
+        }
+    }
+    
+    // If still no image, use a placeholder
+    if (empty($data['images'])) {
+        $data['images'][] = 'https://placehold.co/600x400/6a11cb/ffffff?text=Instagram+Link';
+    }
+    
     return $data;
 }
 
