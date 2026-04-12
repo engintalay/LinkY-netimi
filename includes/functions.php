@@ -155,15 +155,34 @@ function fetchUrlDetails($url)
 function fetchInstagramDetails($url)
 {
     $data = [
-        'title' => parse_url($url, PHP_URL_HOST),
+        'title' => '',
         'description' => '',
         'images' => []
     ];
     
-    // Try to get the post ID
+    // Try to extract username from URL (for profile links like instagram.com/username/)
+    if (preg_match('/instagram\.com\/([a-zA-Z0-9_.]+)(?:\/|$)/', $url, $matches)) {
+        $username = $matches[1];
+        // Skip common paths
+        if (!in_array($username, ['p', 'reels', 'stories', 'tv', 'explore', 'accounts'])) {
+            $data['title'] = '@' . $username;
+        }
+    }
+    
+    // If no username found, try to get post ID
     $post_id = '';
     if (preg_match('/instagram\.com\/(?:p|reels)\/([a-zA-Z0-9_-]+)/', $url, $matches)) {
         $post_id = $matches[1];
+    }
+    
+    // If still no title, use post ID
+    if (empty($data['title']) && $post_id) {
+        $data['title'] = 'Instagram Post';
+    }
+    
+    // If still no title, use hostname
+    if (empty($data['title'])) {
+        $data['title'] = parse_url($url, PHP_URL_HOST);
     }
     
     // Fetch HTML to get image
