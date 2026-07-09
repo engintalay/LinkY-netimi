@@ -180,14 +180,14 @@ $view = $_GET['view'] ?? 'grid';
                             style="color: #ff6b6b; margin-left: 10px;"><i class="fas fa-trash"></i></a>
                     </div>
                     
-                    <?php if(!empty($link['image_url'])): ?>
+                    <?php if(!empty($link['image_url']) || !empty($link['local_image'])): ?>
                         <?php
                         $imgSrc = !empty($link['local_image']) && file_exists($link['local_image']) 
                             ? $link['local_image'] 
                             : $link['image_url'];
                         ?>
                         <div style="height: 150px; overflow: hidden; border-radius: 10px; margin-bottom: 10px; position: relative; cursor: pointer;" 
-                             class="link-image" data-img="<?= htmlspecialchars_decode($link['image_url']) ?>">
+                             class="link-image" data-img="<?= htmlspecialchars_decode($imgSrc) ?>">
                              <img src="<?= htmlspecialchars_decode($imgSrc) ?>" style="width: 100%; height: 100%; object-fit: cover;">
                         </div>
                     <?php endif; ?>

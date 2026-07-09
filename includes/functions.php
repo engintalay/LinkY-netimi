@@ -26,29 +26,208 @@ function sanitize($data)
     return htmlspecialchars(strip_tags(trim($data)));
 }
 
-function fetchUrlTitle($url)
+function fetchUrlContentWithCurl($url)
 {
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (compatible; LinkManager/1.0)');
+    curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36');
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language: tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Cache-Control: no-cache',
+        'Pragma: no-cache',
+        'Upgrade-Insecure-Requests: 1'
+    ]);
+    curl_setopt($ch, CURLOPT_HEADER, 1);
+    curl_setopt($ch, CURLOPT_ENCODING, '');
 
-    $html = curl_exec($ch);
-
-    if (curl_errno($ch)) {
-        curl_close($ch);
-        return parse_url($url, PHP_URL_HOST); // Fallback to domain
-    }
-
+    $response = curl_exec($ch);
+    $error = curl_errno($ch) ? curl_error($ch) : '';
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+    $effectiveUrl = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL) ?: $url;
     curl_close($ch);
 
-    if (preg_match('/<title>(.*?)<\/title>/is', $html, $matches)) {
-        return trim($matches[1]);
+    if ($response === false) {
+        return [
+            'html' => '',
+            'headers' => '',
+            'http_code' => $httpCode,
+            'effective_url' => $effectiveUrl,
+            'error' => $error,
+        ];
     }
 
-    return parse_url($url, PHP_URL_HOST); // Fallback
+    return [
+        'html' => substr($response, $headerSize),
+        'headers' => substr($response, 0, $headerSize),
+        'http_code' => $httpCode,
+        'effective_url' => $effectiveUrl,
+        'error' => $error,
+    ];
+}
+
+function isBotChallengePage($html, $headers = '', $httpCode = 0)
+{
+    $challengeMarkers = [
+        'cf-mitigated: challenge',
+        'Just a moment...',
+        'Enable JavaScript and cookies to continue',
+        '/cdn-cgi/challenge-platform/',
+    ];
+
+    $haystack = strtolower($headers . "\n" . $html);
+    foreach ($challengeMarkers as $marker) {
+        if (strpos($haystack, strtolower($marker)) !== false) {
+            return true;
+        }
+    }
+
+    return $httpCode === 403 && strpos($haystack, 'cloudflare') !== false;
+}
+
+function findHeadlessBrowserBinary()
+{
+    static $browserBinary = null;
+    static $resolved = false;
+
+    if ($resolved) {
+        return $browserBinary;
+    }
+
+    $resolved = true;
+
+    if (!function_exists('shell_exec')) {
+        return null;
+    }
+
+    $candidates = ['chromium-browser', 'chromium', 'google-chrome', 'google-chrome-stable', 'microsoft-edge'];
+    foreach ($candidates as $candidate) {
+        $path = trim((string) shell_exec('command -v ' . escapeshellarg($candidate) . ' 2>/dev/null'));
+        if ($path !== '') {
+            $browserBinary = $path;
+            break;
+        }
+    }
+
+    return $browserBinary;
+}
+
+function fetchUrlContentWithBrowser($url)
+{
+    $browserBinary = findHeadlessBrowserBinary();
+    if (!$browserBinary) {
+        return '';
+    }
+
+    $command = escapeshellarg($browserBinary)
+        . ' --headless --disable-gpu --no-sandbox --virtual-time-budget=12000 --dump-dom '
+        . escapeshellarg($url)
+        . ' 2>/dev/null';
+
+    $html = shell_exec($command);
+    if (!is_string($html) || trim($html) === '') {
+        return '';
+    }
+
+    return $html;
+}
+
+function parseHtmlDetails($html, $baseUrl, $fallbackTitle = '')
+{
+    $data = [
+        'title' => $fallbackTitle,
+        'description' => '',
+        'images' => []
+    ];
+
+    if (trim($html) === '') {
+        return $data;
+    }
+
+    $previousUseInternalErrors = libxml_use_internal_errors(true);
+    $dom = new DOMDocument();
+
+    if (!@$dom->loadHTML($html, LIBXML_NOERROR | LIBXML_NOWARNING | LIBXML_NONET)) {
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousUseInternalErrors);
+        return $data;
+    }
+
+    $xpath = new DOMXPath($dom);
+
+    $titleCandidates = [
+        '//meta[@property="og:title"]/@content',
+        '//meta[@name="twitter:title"]/@content',
+        '//title',
+    ];
+
+    foreach ($titleCandidates as $query) {
+        $nodes = $xpath->query($query);
+        if ($nodes && $nodes->length > 0) {
+            $value = trim($nodes->item(0)->nodeValue);
+            if ($value !== '') {
+                $data['title'] = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                break;
+            }
+        }
+    }
+
+    $descriptionCandidates = [
+        '//meta[@name="description"]/@content',
+        '//meta[@property="og:description"]/@content',
+        '//meta[@name="twitter:description"]/@content',
+    ];
+
+    foreach ($descriptionCandidates as $query) {
+        $nodes = $xpath->query($query);
+        if ($nodes && $nodes->length > 0) {
+            $value = trim($nodes->item(0)->nodeValue);
+            if ($value !== '') {
+                $data['description'] = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                break;
+            }
+        }
+    }
+
+    $imageQueries = [
+        '//meta[@property="og:image"]/@content',
+        '//meta[@name="twitter:image"]/@content',
+        '//link[@rel="image_src"]/@href',
+        '//img/@src',
+    ];
+
+    foreach ($imageQueries as $query) {
+        $nodes = $xpath->query($query);
+        if (!$nodes) {
+            continue;
+        }
+
+        foreach ($nodes as $node) {
+            $imageUrl = makeAbsoluteUrl(trim($node->nodeValue), $baseUrl);
+            if ($imageUrl !== '') {
+                $data['images'][] = $imageUrl;
+            }
+        }
+    }
+
+    libxml_clear_errors();
+    libxml_use_internal_errors($previousUseInternalErrors);
+
+    $data['images'] = array_values(array_unique($data['images']));
+
+    return $data;
+}
+
+function fetchUrlTitle($url)
+{
+    $details = fetchUrlDetails($url);
+    return $details['title'] ?: parse_url($url, PHP_URL_HOST);
 }
 
 function makeAbsoluteUrl($url, $base)
@@ -76,78 +255,42 @@ function fetchUrlDetails($url)
         return fetchInstagramDetails($url);
     }
     
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (compatible; LinkManager/1.0)');
-
-    $html = curl_exec($ch);
-    
     $data = [
         'title' => '',
         'description' => '',
-        'images' => []
+        'images' => [],
+        'error' => ''
     ];
 
-    if (curl_errno($ch)) {
-        curl_close($ch);
-        $data['title'] = parse_url($url, PHP_URL_HOST);
+    $fallbackTitle = parse_url($url, PHP_URL_HOST);
+    $response = fetchUrlContentWithCurl($url);
+    $html = $response['html'];
+    $baseUrl = $response['effective_url'] ?: $url;
+
+    if ($response['error'] !== '') {
+        $data['title'] = $fallbackTitle;
         return $data;
     }
 
-    curl_close($ch);
-
-    // Title
-    if (preg_match('/<title>(.*?)<\/title>/is', $html, $matches)) {
-        $data['title'] = html_entity_decode(trim($matches[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-    } else {
-        $data['title'] = parse_url($url, PHP_URL_HOST);
-    }
-
-    // Get base URL for resolving relative URLs
-    $baseUrl = $url;
-
-    // Description
-    if (preg_match('/<meta name="description" content="(.*?)"/i', $html, $matches)) {
-        $data['description'] = html_entity_decode(trim($matches[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-    } elseif (preg_match('/<meta property="og:description" content="(.*?)"/i', $html, $matches)) {
-        $data['description'] = html_entity_decode(trim($matches[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-    } elseif (preg_match('/<meta name="twitter:description" content="(.*?)"/i', $html, $matches)) {
-        $data['description'] = html_entity_decode(trim($matches[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-    }
-
-    // Images (og:image)
-    if (preg_match_all('/<meta property="og:image" content="(.*?)"/i', $html, $matches)) {
-        foreach($matches[1] as $img) {
-            $data['images'][] = makeAbsoluteUrl($img, $baseUrl);
-        }
-    }
-    // twitter:image
-    if (preg_match_all('/<meta name="twitter:image" content="(.*?)"/i', $html, $matches)) {
-        foreach($matches[1] as $img) {
-            $data['images'][] = makeAbsoluteUrl($img, $baseUrl);
-        }
-    }
-    // link rel="image_src"
-    if (preg_match_all('/<link rel="image_src" href="(.*?)"/i', $html, $matches)) {
-         foreach($matches[1] as $img) {
-            $data['images'][] = makeAbsoluteUrl($img, $baseUrl);
-        }
-    }
-    // Fallback: Find all img tags
-    if (preg_match_all('/<img[^>]+src="([^"]+)"/i', $html, $matches)) {
-        foreach($matches[1] as $img) {
-            $absoluteUrl = makeAbsoluteUrl($img, $baseUrl);
-            if ($absoluteUrl) {
-                $data['images'][] = $absoluteUrl;
-            }
+    $challengeDetected = isBotChallengePage($html, $response['headers'], (int) $response['http_code']);
+    if ($challengeDetected) {
+        $browserHtml = fetchUrlContentWithBrowser($url);
+        if ($browserHtml !== '') {
+            $html = $browserHtml;
         }
     }
 
-    $data['images'] = array_unique($data['images']);
-    $data['images'] = array_values($data['images']);
+    if (isBotChallengePage($html)) {
+        $data['error'] = 'Bu site bot korumasi kullandigi icin baslik ve aciklama otomatik olarak cekilemiyor.';
+        return $data;
+    }
+
+    $data = parseHtmlDetails($html, $baseUrl, $fallbackTitle);
+    $data['error'] = '';
+
+    if ($data['title'] === '') {
+        $data['title'] = $fallbackTitle;
+    }
 
     return $data;
 }
@@ -260,3 +403,38 @@ function downloadImage($imageUrl, $imagesDir = 'images/')
     
     return $filepath;
 }
+
+    function saveDataUrlImage($dataUrl, $imagesDir = 'images/')
+    {
+        if (empty($dataUrl) || strpos($dataUrl, 'data:image/') !== 0) {
+            return '';
+        }
+
+        if (!preg_match('/^data:image\/(png|jpeg|jpg|gif|webp);base64,(.+)$/i', $dataUrl, $matches)) {
+            return '';
+        }
+
+        $extension = strtolower($matches[1]);
+        if ($extension === 'jpeg') {
+            $extension = 'jpg';
+        }
+
+        $binary = base64_decode(str_replace(' ', '+', $matches[2]), true);
+        if ($binary === false || strlen($binary) > 5 * 1024 * 1024) {
+            return '';
+        }
+
+        $imageInfo = @getimagesizefromstring($binary);
+        if ($imageInfo === false || empty($imageInfo['mime']) || strpos($imageInfo['mime'], 'image/') !== 0) {
+            return '';
+        }
+
+        $filename = uniqid('img_', true) . '.' . $extension;
+        $filepath = $imagesDir . $filename;
+
+        if (file_put_contents($filepath, $binary) === false) {
+            return '';
+        }
+
+        return $filepath;
+    }

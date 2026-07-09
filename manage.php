@@ -73,6 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $title = sanitize($_POST['title']);
         $desc = sanitize($_POST['description']);
         $image_url = sanitize($_POST['image_url'] ?? '');
+        $pasted_image_data = $_POST['pasted_image_data'] ?? '';
 
         // Auto fetch title if empty
         if (empty($title) && !empty($url)) {
@@ -87,7 +88,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $existing = $stmt->fetch();
                 
                 $local_image = $existing['local_image'] ?? '';
-                if (!empty($image_url) && $image_url !== $existing['image_url']) {
+                if (!empty($pasted_image_data)) {
+                    if (!empty($local_image) && file_exists($local_image)) {
+                        unlink($local_image);
+                    }
+                    $local_image = saveDataUrlImage($pasted_image_data);
+                    $image_url = '';
+                } elseif (!empty($image_url) && $image_url !== $existing['image_url']) {
                     // New image URL - delete old local image and download new one
                     if (!empty($local_image) && file_exists($local_image)) {
                         unlink($local_image);
@@ -105,7 +112,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($chk->fetchColumn() > 0) {
                     $error = "Bu linki zaten eklemişsin.";
                 } else {
-                    $local_image = downloadImage($image_url);
+                    $local_image = !empty($pasted_image_data)
+                        ? saveDataUrlImage($pasted_image_data)
+                        : downloadImage($image_url);
+                    if (!empty($pasted_image_data)) {
+                        $image_url = '';
+                    }
                     $stmt = $pdo->prepare("INSERT INTO links (user_id, category_id, url, title, description, image_url, local_image) VALUES (?, ?, ?, ?, ?, ?, ?)");
                     $stmt->execute([$_SESSION['user_id'], $cat_id, $url, $title, $desc, $image_url, $local_image]);
                     
@@ -213,22 +225,34 @@ if ($action == 'new_category')
 
                     <!-- Image Selection -->
                     <input type="hidden" name="image_url" id="imageUrlInput" value="<?= $editData['image_url'] ?? '' ?>">
-                    <div class="form-group" id="imageSelectionArea" style="<?= ($editData['image_url'] ?? '') ? '' : 'display:none;' ?>">
+                    <input type="hidden" name="pasted_image_data" id="pastedImageData" value="">
+                    <div class="form-group">
+                        <label>Dışarıdan Resim Ekle</label>
+                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <input type="url" id="manualImageUrl" value="<?= $editData['image_url'] ?? '' ?>"
+                                placeholder="https://example.com/resim.jpg" style="flex: 1; min-width: 260px;">
+                            <button type="button" onclick="addManualImage()" style="padding: 10px;">Resim Ekle</button>
+                        </div>
+                        <div id="pasteImageArea" tabindex="0" style="margin-top: 10px; padding: 14px; border: 2px dashed rgba(52, 152, 219, 0.45); border-radius: 10px; background: rgba(255,255,255,0.35); color: #4a5568; text-align: center; cursor: text;">
+                            Resmi kopyalayıp buraya Ctrl+V ile yapıştırın
+                        </div>
+                        <small style="color: #666; font-size: 0.8em;">Otomatik çekim çalışmazsa doğrudan görsel bağlantısı yapıştırabilir veya ekran görüntüsünü panodan ekleyebilirsiniz.</small>
+                    </div>
+
+                    <div class="form-group" id="imageSelectionArea" style="<?= (($editData['image_url'] ?? '') || ($editData['local_image'] ?? '')) ? '' : 'display:none;' ?>">
                         <label>Görsel Seçimi</label>
-                        <?php if($editData['image_url'] ?? ''): ?>
-                            <div style="margin-bottom:10px;">
-                                <img src="<?= htmlspecialchars_decode($editData['image_url']) ?>" style="height: 100px; border-radius: 5px; border: 2px solid #3498db;">
-                                <p style="font-size:0.8em; color:#666;">Mevcut Görsel</p>
+                        <?php $currentImage = $editData['image_url'] ?? ($editData['local_image'] ?? ''); ?>
+                        <?php if($currentImage): ?>
+                            <div style="margin-bottom:10px;" id="currentImagePreview">
+                                <img src="<?= htmlspecialchars_decode($currentImage) ?>" style="height: 100px; border-radius: 5px; border: 2px solid #3498db;">
+                                <p style="font-size:0.8em; color:#666;">Seçili Görsel</p>
                             </div>
+                        <?php else: ?>
+                            <div style="margin-bottom:10px; display:none;" id="currentImagePreview"></div>
                         <?php endif; ?>
-                        
+
                         <div id="fetchedImagesGrid" style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px;">
                             <!-- Images will be injected here via JS -->
-                        </div>
-                        
-                        <div style="margin-top: 10px;">
-                            <input type="url" id="manualImageUrl" placeholder="Veya resim URL'sini manuel girin..." style="width: 70%;">
-                            <button type="button" onclick="addManualImage()" style="padding: 10px; margin-left: 5px;">Ekle</button>
                         </div>
                     </div>
 
@@ -271,7 +295,10 @@ if ($action == 'new_category')
             var titleInput = document.getElementById('titleInput');
             var descInput = document.querySelector('textarea[name="description"]');
             var imageUrlInput = document.getElementById('imageUrlInput');
+            var pastedImageDataInput = document.getElementById('pastedImageData');
+            var manualImageInput = document.getElementById('manualImageUrl');
             var imageArea = document.getElementById('imageSelectionArea');
+            var preview = document.getElementById('currentImagePreview');
             var grid = document.getElementById('fetchedImagesGrid');
             var btn = this;
 
@@ -329,6 +356,9 @@ if ($action == 'new_category')
                                     this.style.borderColor = '#3498db';
                                     this.style.opacity = '1';
                                     imageUrlInput.value = imgUrl;
+                                    pastedImageDataInput.value = '';
+                                    manualImageInput.value = imgUrl;
+                                    preview.style.display = 'none';
                                 };
 
                                 grid.appendChild(imgDiv);
@@ -357,13 +387,24 @@ if ($action == 'new_category')
             var grid = document.getElementById('fetchedImagesGrid');
             var imageArea = document.getElementById('imageSelectionArea');
             var imageUrlInput = document.getElementById('imageUrlInput');
+            var pastedImageDataInput = document.getElementById('pastedImageData');
+            var preview = document.getElementById('currentImagePreview');
             
             if (!manualUrl) {
                 alert('Lütfen resim URL\'si girin.');
                 return;
             }
+
+            try {
+                new URL(manualUrl);
+            } catch (error) {
+                alert('Lütfen gecerli bir resim URL\'si girin.');
+                return;
+            }
             
             imageArea.style.display = 'block';
+            preview.style.display = 'none';
+            pastedImageDataInput.value = '';
             
             var imgDiv = document.createElement('div');
             imgDiv.style.cursor = 'pointer';
@@ -386,6 +427,46 @@ if ($action == 'new_category')
             imgDiv.click(); // Auto-select
             document.getElementById('manualImageUrl').value = '';
         }
+
+        document.getElementById('pasteImageArea').addEventListener('paste', function(event) {
+            var items = event.clipboardData && event.clipboardData.items ? Array.from(event.clipboardData.items) : [];
+            var imageItem = items.find(function(item) {
+                return item.type && item.type.indexOf('image/') === 0;
+            });
+
+            if (!imageItem) {
+                return;
+            }
+
+            event.preventDefault();
+
+            var file = imageItem.getAsFile();
+            if (!file) {
+                alert('Panodaki resim okunamadi.');
+                return;
+            }
+
+            var reader = new FileReader();
+            reader.onload = function(loadEvent) {
+                var dataUrl = loadEvent.target.result;
+                var imageArea = document.getElementById('imageSelectionArea');
+                var preview = document.getElementById('currentImagePreview');
+                var imageUrlInput = document.getElementById('imageUrlInput');
+                var pastedImageDataInput = document.getElementById('pastedImageData');
+                var manualImageInput = document.getElementById('manualImageUrl');
+                var grid = document.getElementById('fetchedImagesGrid');
+
+                pastedImageDataInput.value = dataUrl;
+                imageUrlInput.value = '';
+                manualImageInput.value = '';
+                grid.innerHTML = '';
+                imageArea.style.display = 'block';
+                preview.style.display = 'block';
+                preview.innerHTML = '<img src="' + dataUrl + '" style="height: 100px; border-radius: 5px; border: 2px solid #3498db;"><p style="font-size:0.8em; color:#666;">Panodan Eklenen Gorsel</p>';
+            };
+
+            reader.readAsDataURL(file);
+        });
     </script>
 </body>
 
